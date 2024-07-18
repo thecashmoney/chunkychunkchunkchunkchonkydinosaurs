@@ -1,0 +1,63 @@
+# Copyright 2024 The MITRE Corporation. ALL RIGHTS RESERVED
+# Approved for public release. Distribution unlimited 23-02181-25.
+
+.vscode/
+*.swp
+cscope*
+
+## C
+
+# Prerequisites
+*.d
+
+# Object files
+*.o
+*.obj
+*.elf
+
+# Linker output
+*.ilk
+*.map
+*.exp
+
+# Libraries
+*.lib
+*.a
+*.la
+*.lo
+
+# Executables
+*.axf
+*.bin 
+
+## Python
+
+# Byte-compiled / optimized / DLL files
+**/__pycache__/
+*.py[cod]
+*$py.class
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# IPython
+profile_default/
+ipython_config.py
+
+# PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
+__pypackages__/
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Secrets template
+bootloader/inc/secrets.h
+tools/secret_build_output.txt
+secret_build_output.txt

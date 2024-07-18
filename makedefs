@@ -1,0 +1,99 @@
+#******************************************************************************
+#
+# makedefs - Definitions common to all makefiles.
+#
+# Copyright (c) 2005-2020 Texas Instruments Incorporated.  All rights reserved.
+# Software License Agreement
+# 
+#   Redistribution and use in source and binary forms, with or without
+#   modification, are permitted provided that the following conditions
+#   are met:
+# 
+#   Redistributions of source code must retain the above copyright
+#   notice, this list of conditions and the following disclaimer.
+# 
+#   Redistributions in binary form must reproduce the above copyright
+#   notice, this list of conditions and the following disclaimer in the
+#   documentation and/or other materials provided with the  
+#   distribution.
+# 
+#   Neither the name of Texas Instruments Incorporated nor the names of
+#   its contributors may be used to endorse or promote products derived
+#   from this software without specific prior written permission.
+# 
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# 
+# This is part of revision 2.2.0.295 of the Tiva Firmware Development Package.
+#
+#******************************************************************************
+
+# This file has been modified from the base TivaWare version for BWSI Embsec 2024
+
+PART=TM4C123GH6PM
+
+COMPILER=gcc
+PREFIX=arm-none-eabi
+
+CC=${PREFIX}-${COMPILER}
+
+AR=${PREFIX}-ar
+
+LD=${PREFIX}-ld
+
+OBJCOPY=${PREFIX}-objcopy
+
+# Get standard library locations from GCC
+LIBGCC=${shell ${CC} ${CFLAGS} -print-libgcc-file-name}
+LIBC=${shell ${CC} ${CFLAGS} -print-file-name=libc.a}
+LIBM=${shell ${CC} ${CFLAGS} -print-file-name=libm.a}
+LIBNOSYS=${shell ${CC} ${CFLAGS} -print-file-name=libnosys.a}
+
+# Hardware optimization settings
+CPU=-mcpu=cortex-m4
+FPU=-mfpu=fpv4-sp-d16 -mfloat-abi=hard
+
+# Assembler flags
+AFLAGS=-mthumb \
+       ${CPU}  \
+       ${FPU}  \
+       -MD
+
+# Compiler flags
+CFLAGS=-mthumb             \
+       ${CPU}              \
+       ${FPU}              \
+       -ffunction-sections \
+       -fdata-sections     \
+       -MD                 \
+       -std=c99            \
+       -Wall               \
+       -pedantic           \
+       -DPART_${PART}      \
+       -c
+
+# Linker flags
+LDFLAGS=--gc-sections \
+        -Map=output.map
+
+# Debug settings
+CFLAGS+=-ggdb -D DEBUG -O0
+
+CFLAGS+=-Os
+
+# Object files from C files
+bin/%.o: %.c
+	${CC} ${CFLAGS} -D${COMPILER} -o ${@} ${<}
+
+# Create static library archives (.a files)
+bin/%.a:
+	${AR} -cr ${@} ${^}

@@ -1,0 +1,6 @@
+---
+Language: Cpp
+ColumnLimit: 9999
+IndentWidth: 4
+PointerAlignment: Middle
+AllowShortFunctionsOnASingleLine: None
