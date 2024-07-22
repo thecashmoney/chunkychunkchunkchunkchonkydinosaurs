@@ -35,10 +35,39 @@ RESP_OK = b"\x00"
 FRAME_SIZE = 256
 
 
+MESSAGE_TYPE = [0,1,2]
+
+
 def send_metadata(ser, metadata, debug=False):
-    assert(len(metadata) == 4)
-    version = u16(metadata[:2], endian='little')
-    size = u16(metadata[2:], endian='little')
+    assert(len(metadata) > 4)
+    type = MESSAGE_TYPE[0]
+    #version = u16(metadata[:2], endian='little')
+    size = u16(metadata[2:4], endian='little')
+
+    IV = []
+    for i in range(32):
+        IV[i] = metadata[4+i]
+    
+
+    tag = []
+    for i in range(32):
+        tag[i] = metadata[36+i]
+    
+
+    fw_size = u16(metadata[128: 130])
+    release_size = u16(metadata[130:132])
+    version = u16(metadata[132:134])
+    
+
+
+
+
+    
+    #IV = metadata[4:36], endian = "little"
+    tag = u16(metadata[36:68], endian="little")
+
+
+
     print(f"Version: {version}\nSize: {size} bytes\n")
 
     # Handshake for update
