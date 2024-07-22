@@ -9,12 +9,16 @@ Firmware Bundle-and-Protect Tool
 """
 import argparse
 from pwn import *
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad, unpad
 
 
 def protect_firmware(infile, outfile, version, message):
+
     # Load firmware binary from infile
     with open(infile, "rb") as fp:
         firmware = fp.read()
+
 
     # Append null-terminated message to end of firmware
     firmware_and_message = firmware + message.encode() + b"\00"
@@ -25,10 +29,25 @@ def protect_firmware(infile, outfile, version, message):
     # Append firmware and message to metadata
     firmware_blob = metadata + firmware_and_message
 
+
+
+    #----------------------ENCRYPTION----------------------------------
+
+    #with open(keyfile, "rb") as key:
+    key = b""
+
+
+    cipher = AES.new(key, 11)
+
+    nonce = cipher.nonce
+
+    ciphertext, tag = cipher.encrypt_and_digest(firmware_blob)
+
+    #--------------------------------------------------------------
+
     # Write firmware blob to outfile
     with open(outfile, "wb+") as outfile:
         outfile.write(firmware_blob)
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Firmware Update Tool")
