@@ -77,7 +77,7 @@ def protect_firmware(infile, outfile, version, message):
 
 
     # Append null-terminated message to end of firmware
-    firmware_and_message = firmware + message.encode() + b"\00"
+    firmmware_and_message = firmware + message.encode() + b"\00"
 
     # Pack version and size into two little-endian shorts
     metadata = p16(version, endian='little') + p16(len(firmware), endian='little')  
@@ -107,6 +107,12 @@ def protect_firmware(infile, outfile, version, message):
         outfile.write(firmware_blob)
 
 def protect_32_bytes(data):
+    """
+    Protects 32 bytes of data by encrypting it with AES-GCM using a key and AAD from a file.
+
+    Returns: a frame containing the frame type, IV, encrypted data, tag, and padding
+    """
+
     with open("../secret_build_output.txt", "rb") as keyfile:
         key = keyfile.read(16)
         aad = keyfile.read(16)
