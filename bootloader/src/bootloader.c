@@ -173,11 +173,11 @@ void load_firmware(void) {
         rcv = uart_read(UART0, BLOCKING, &read);
         encrypted_ver_num |= (uint32_t)rcv << 8;
 
-        // Get encrypted release message
+        // Get encrypted release message size
         rcv = uart_read(UART0, BLOCKING, &read);
-        encrypted_release_msg = (uint32_t)rcv;
+        encrypted_release_msg_size = (uint32_t)rcv;
         rcv = uart_read(UART0, BLOCKING, &read);
-        encrypted_release_msg |= (uint32_t)rcv << 8;
+        encrypted_release_msg_size |= (uint32_t)rcv << 8;
 
         //Get decrypted release message
         for(int i = decrypted_release_msg_size-1; i >=0; i--) {
