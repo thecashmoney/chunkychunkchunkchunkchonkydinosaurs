@@ -60,14 +60,14 @@ def start_protect(startMsg, outputMsg, version, message):
     #store everything in json file
     json_k = [ 'nonce', 'header', 'ciphertext', 'tag' ]
     json_v = [ b64encode(x).decode('utf-8') for x in (cipher.nonce, header, ciphertext, tag) ]
-    result = json.dumps(dict(zip(json_k, json_v)))
+    outputMsg = json.dumps(dict(zip(json_k, json_v)))
 
     #--------------------------------------------------------------
 
-    
-    # Write firmware blob to outfile
-    with open(outfile, "wb+") as outfile:
-        outfile.write(firmware_blob)
+    #---------------------------------- i dont think i need this but keeping it just in case
+    # # Write firmware blob to outfile
+    # with open(outfile, "wb+") as outfile:
+    #     outfile.write(firmware_blob)
 
 def protect_firmware(infile, outfile, version, message):
 
