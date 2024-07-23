@@ -24,6 +24,18 @@ from Crypto.Random import get_random_bytes
 
 
 def start_protect(version, message, outputMsg):
+    """
+    Start message creation and encryption
+    its just bytes that we put at the beginning of fw_protected
+
+    First 1 byte: type (0x00)
+    Next 2 bytes: size (0x02)
+    Next 16 bytes: IV
+    Next 2 bytes: reease message size
+    Next x bytes: ciphertext with version number
+    Last 10 bytes: tag
+    """
+
     metadata = p16(version, endian='little') + p16(message, endian='little') 
 
     #----------------------ENCRYPTION----------------------------------
