@@ -31,24 +31,26 @@ def update_line(headerFile, varUpdate, value):
     # Read the existing content of the header file
     with open(headerFile, 'r') as file:
         lines = file.readlines()
+    
+    print(lines)
 
     # Compile a regex pattern to match the variable definition
     pattern = f'define {varUpdate}'
     # Update the line with the new value
     for i, line in enumerate(lines):
         if pattern in line:
-            lines[i] = f'#define {varUpdate} {value}\n'
+            lines[i] = f'#define {varUpdate} 0x{value}\n'
             break
     else:
         # If the variable was not found, add it to the end of the file
-        lines[-1] = f'#define {varUpdate} {value}\n'
+        lines[-1] = f'#define {varUpdate} 0x{value}\n'
         lines.append('\n#endif')
 
     # Write the updated content back to the header file
     with open(headerFile, 'w') as file:
         file.writelines(lines)
 
-    print(f'Updated {headerFile} with {varUpdate} = {value}')
+    print(f'Updated {headerFile} with {varUpdate} = 0x{value}')
 
 
 
@@ -63,10 +65,10 @@ def make_bootloader() -> bool:
     print("cipher: ", cipher)
 
     # update secrets.h with the newly generated AES-GCM (128 bit) key
-    update_line("${HOME}/chunkychunkchunkchunkchonkydinosaurs/bootloader/inc/secrets.h", "aesKey", cipher.hexdigest())
+    update_line("${HOME}/Documents/BWSI/chunkychunkchunkchunkchonkydinosaurs/bootloader/inc/secrets.h", "aesKey", cipher.hexdigest())
 
     # update secrets.h with the newly generated AAD
-    update_line("${HOME}/chunkychunkchunkchunkchonkydinosaurs/bootloader/inc/secrets.h", "aad", aad.hex())
+    update_line("${HOME}/Documents/BWSI/chunkychunkchunkchunkchonkydinosaurs/bootloader/inc/secrets.h", "aad", aad.hex())
 
 
     # --------------------- DO NOT TOUCH THIS CODE ---------------------
