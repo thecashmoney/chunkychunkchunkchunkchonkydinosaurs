@@ -108,6 +108,42 @@ def protect_firmware(infile, outfile, version, message):
     with open(outfile, "wb+") as outfile:
         outfile.write(firmware_blob)
 
+def protect_32_bytes(data):
+    with open("../secret_build_output.txt", "rb") as keyfile:
+        key = keyfile.read(16)
+        aad = keyfile.read(16)
+
+    # If the data is empty, return an empty byte array
+    if data is None:
+        return bytearray(0)
+    # Pad the data to be a multiple of 16 byets
+    elif data % 32 != 0:
+        data = pad(data, 16)
+
+    # Create the frame buffer
+    frame = bytearray(len(data) + 1 + 16 + 32 + 16)
+    byte_ind = 0
+    frame[byte_ind] = 0x01
+    byte_ind += 1
+
+    # Create the IV / nonce
+    iv = get_random_bytes(16)
+    frame[byte_ind:byte_ind+16] = iv
+    byte_ind += 16
+
+    # Encrypt the data
+    cipher = AES.new(key, AES.MODE_GCM, nonce=iv, mac_len=16)
+    cipher.add(aad)
+    ciphertext, tag = cipher.encrypt_and_digest(data)
+    frame[byte_ind:byte_ind+32] = ciphertext
+    byte_ind += 32
+    frame[byte_ind:byte_ind+16] = tag
+
+    # Padding the rest of the frame to a multiple of 16
+    frame = pad(frame, 16)
+
+    # Return the key and the encrypted data
+    return frame
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Firmware Update Tool")
