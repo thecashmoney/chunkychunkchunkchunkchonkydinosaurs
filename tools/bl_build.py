@@ -36,6 +36,7 @@ def update_line(headerFile, varUpdate, value):
 
     # Compile a regex pattern to match the variable definition
     pattern = f'define {varUpdate}'
+    print(lines[-1])
     # Update the line with the new value
     for i, line in enumerate(lines):
         if pattern in line:
