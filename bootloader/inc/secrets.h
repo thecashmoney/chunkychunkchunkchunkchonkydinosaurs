@@ -2,7 +2,7 @@
 #define SECRETS_H
 
 // bl_build.py
-#define aesKey 
-#define aad 
+#define aesKey
+#define aad
 
 #endif

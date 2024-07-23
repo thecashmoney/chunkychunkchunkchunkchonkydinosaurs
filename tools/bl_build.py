@@ -50,6 +50,7 @@ def update_line(headerFile, varUpdate, value):
         file.writelines(lines)
 
 
+# Function to generate the keys and build the bootloader
 def make_bootloader() -> bool:
     # Generate AAD (Additional Authentication Data)
     aad = get_random_bytes(16)  # used to authenticate integrity of the encrypted data
@@ -69,13 +70,13 @@ def make_bootloader() -> bool:
     # --------------------- DO NOT TOUCH THIS CODE ---------------------
     # Build the bootloader from source.
 
-    '''os.chdir(BOOTLOADER_DIR)
+    os.chdir(BOOTLOADER_DIR)
 
     subprocess.call("make clean", shell=True)
     status = subprocess.call("make")
 
     # Return True if make returned 0, otherwise return False.
-    return status == 0'''
+    return status == 0
 
     # --------------------- END OF UNTOUCHABLE CODE ---------------------
 
