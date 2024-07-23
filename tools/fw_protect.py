@@ -42,26 +42,24 @@ def start_protect(startMsg, outputMsg, version, message):
 
     #----------------------ENCRYPTION----------------------------------
 
+    #------------------------TODO: implement header to import key
     #with open(keyfile, "rb") as key:
-    key = b""
-
+    key = get_random_bytes(16)
 
     header = b"header"
 
-    data = version + int.to_bytes(len(version)) + message
-    key = get_random_bytes(16)
+    data = version + message
 
     cipher = AES.new(key, AES.MODE_GCM)
 
     cipher.update(header)
 
+    #encrypt data
     ciphertext, tag = cipher.encrypt_and_digest(data)
 
-
+    #store everything in json file
     json_k = [ 'nonce', 'header', 'ciphertext', 'tag' ]
-
     json_v = [ b64encode(x).decode('utf-8') for x in (cipher.nonce, header, ciphertext, tag) ]
-
     result = json.dumps(dict(zip(json_k, json_v)))
 
     #--------------------------------------------------------------
