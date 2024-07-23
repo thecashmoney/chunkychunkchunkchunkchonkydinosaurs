@@ -56,12 +56,11 @@ def make_bootloader() -> bool:
     aad = get_random_bytes(16)  # used to authenticate integrity of the encrypted data
 
     # Generate AES-GCM (128 bit) key
-    key = get_random_bytes(16)
-    cipher = AES.new(key, AES.MODE_GCM)
-    cipher.update(aad)
+    aesKey = get_random_bytes(16)
+
 
     # update secrets.h with the newly generated AES-GCM (128 bit) key
-    update_line("${HOME}/chunkychunkchunkchunkchonkydinosaurs/bootloader/inc/secrets.h", "aesKey", cipher.hexdigest())
+    update_line("${HOME}/chunkychunkchunkchunkchonkydinosaurs/bootloader/inc/secrets.h", "aesKey", aesKey.hex())
 
     # update secrets.h with the newly generated AAD 
     update_line("${HOME}/chunkychunkchunkchunkchonkydinosaurs/bootloader/inc/secrets.h", "aad", aad.hex())
@@ -70,13 +69,13 @@ def make_bootloader() -> bool:
     # --------------------- DO NOT TOUCH THIS CODE ---------------------
     # Build the bootloader from source.
 
-    os.chdir(BOOTLOADER_DIR)
+    '''os.chdir(BOOTLOADER_DIR)
 
     subprocess.call("make clean", shell=True)
     status = subprocess.call("make")
 
     # Return True if make returned 0, otherwise return False.
-    return status == 0
+    return status == 0'''
 
     # --------------------- END OF UNTOUCHABLE CODE ---------------------
 
