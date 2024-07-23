@@ -23,32 +23,17 @@ from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 
 
-def start_protect(startMsg, outputMsg, version, message):
-    # Load start binary from infile
-    with open(startMsg, "rb") as fp:
-        start = fp.read()
-
-    
-    # Append null-terminated message to end of firmware
-    firmware_and_message = firmware + message.encode() + b"\00"
-
-    # Pack version and size into two little-endian shorts
-    metadata = p16(version, endian='little') + p16(len(firmware), endian='little')  
-
-    # Append firmware and message to metadata
-    firmware_blob = metadata + firmware_and_message
-
-
+def start_protect(version, message, outputMsg):
+    metadata = p16(version, endian='little') + p16(message, endian='little') 
 
     #----------------------ENCRYPTION----------------------------------
-
     #------------------------TODO: implement header to import key
     #with open(keyfile, "rb") as key:
     key = get_random_bytes(16)
 
     header = b"header"
 
-    data = version + message
+    data = metadata
 
     cipher = AES.new(key, AES.MODE_GCM)
 
