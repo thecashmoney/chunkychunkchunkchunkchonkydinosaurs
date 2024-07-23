@@ -76,7 +76,6 @@ void debug_delay_led() {
     GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_3, 0x0);
 }
 
-
 int main(void) {
 
     // Enable the GPIO port that is used for the on-board LED.
@@ -125,20 +124,71 @@ void load_firmware(void) {
 
     uint32_t data_index = 0;
     uint32_t page_addr = FW_BASE;
+    uint32_t message_type;
     uint32_t version = 0;
     uint32_t size = 0;
+    uint32_t IV[16];
+    uint32_t encrypted_ver_num;
+    uint32_t encrypted_release_msg_size;
+    uint32_t decrypted_release_msg_size;
+    uint32_t decrypted_release_msg[decrypted_release_msg_size];
 
-    // Get version.
-    rcv = uart_read(UART0, BLOCKING, &read);
-    version = (uint32_t)rcv;
-    rcv = uart_read(UART0, BLOCKING, &read);
-    version |= (uint32_t)rcv << 8;
 
-    // Get size.
+
+    //original starter code: keeping for reference cuz i lowk dk what im doing lmao
+    // // Get version.
+    // rcv = uart_read(UART0, BLOCKING, &read);
+    // version = (uint32_t)rcv;
+    // rcv = uart_read(UART0, BLOCKING, &read);
+    // version |= (uint32_t)rcv << 8;
+
+    // // Get size.
+    // rcv = uart_read(UART0, BLOCKING, &read);
+    // size = (uint32_t)rcv;
+    // rcv = uart_read(UART0, BLOCKING, &read);
+    // size |= (uint32_t)rcv << 8;
+
+
+    //Get message type (pls be right) - only one byte
     rcv = uart_read(UART0, BLOCKING, &read);
-    size = (uint32_t)rcv;
-    rcv = uart_read(UART0, BLOCKING, &read);
-    size |= (uint32_t)rcv << 8;
+    message_type = (uint32_t)rcv;
+
+    if(message_type == 0) {
+        //Get message size
+        rcv = uart_read(UART0, BLOCKING, &read);
+        size = (uint32_t)rcv;
+        rcv = uart_read(UART0, BLOCKING, &read);
+        size |= (uint32_t)rcv << 8;
+
+        //Get IV: this is probably wrong :(((((((((
+
+        for(int i = 16; i > 0; i--) {
+            rcv = uart_read(UART0, BLOCKING, &read);
+            IV[16-i] = (uint32_t)rcv;
+        }
+
+        //Get encrypted version number
+        rcv = uart_read(UART0, BLOCKING, &read);
+        encrypted_ver_num = (uint32_t)rcv;
+        rcv = uart_read(UART0, BLOCKING, &read);
+        encrypted_ver_num |= (uint32_t)rcv << 8;
+
+        // Get encrypted release message
+        rcv = uart_read(UART0, BLOCKING, &read);
+        encrypted_release_msg = (uint32_t)rcv;
+        rcv = uart_read(UART0, BLOCKING, &read);
+        encrypted_release_msg |= (uint32_t)rcv << 8;
+
+        //Get decrypted release message
+        for(int i = decrypted_release_msg_size-1; i >=0; i--) {
+            rcv = uart_read(UART0, BLOCKING, &read);
+            decrypted_release_msg[decrypted_release_msg_size - i] = (uint32_t)rcv;
+        }
+    } else if (message_type == 1) {
+        //read data
+    } else if (message_type == 2){
+        //send end frame
+    }
 
     // Compare to old version and abort if older (note special case for version 0).
     // If no metadata available (0xFFFF), accept version 1

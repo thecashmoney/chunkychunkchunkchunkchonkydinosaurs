@@ -32,43 +32,22 @@ from util import *
 ser = serial.Serial("/dev/ttyACM0", 115200)
 
 RESP_OK = b"\x00"
-FRAME_SIZE = 256
+FRAME_SIZE = 32
+SIZE = 0
 
 
 MESSAGE_TYPE = [0,1,2]
 
 
 def send_metadata(ser, metadata, debug=False):
-    assert(len(metadata) > 4)
-    type = MESSAGE_TYPE[0]
-    #version = u16(metadata[:2], endian='little')
-    size = u16(metadata[2:4], endian='little')
-
-    IV = []
-    for i in range(32):
-        IV[i] = metadata[4+i]
-    
-
-    tag = []
-    for i in range(32):
-        tag[i] = metadata[36+i]
-    
-
-    fw_size = u16(metadata[128: 130])
-    release_size = u16(metadata[130:132])
-    version = u16(metadata[132:134])
-    
+    assert(len(metadata) > 39)
 
 
-
-
-    
-    #IV = metadata[4:36], endian = "little"
-    tag = u16(metadata[36:68], endian="little")
-
-
-
-    print(f"Version: {version}\nSize: {size} bytes\n")
+    msg_type = u8(metadata[1], endian="little")
+    size = u16(metadata[1:3], endian="little")
+    SIZE = u16(metadata[19:21], endian="little")
+    print(f"Message Type: {msg_type}\nTotal Size (all data): {size} bytes")
+    #print(f"Version: {version}\nSize: {size} bytes\n")
 
     # Handshake for update
     ser.write(b"U")
@@ -112,8 +91,8 @@ def update(ser, infile, debug):
     with open(infile, "rb") as fp:
         firmware_blob = fp.read()
 
-    metadata = firmware_blob[:4]
-    firmware = firmware_blob[4:]
+    metadata = firmware_blob[:SIZE]
+    firmware = firmware_blob[SIZE:]
 
     send_metadata(ser, metadata, debug=debug)
 
