@@ -53,7 +53,7 @@ def update_line(headerFile, varUpdate, value):
 # Function to generate the keys and build the bootloader
 def make_bootloader() -> bool:
     # Generate AAD (Additional Authentication Data)
-    #aad = get_random_bytes(16)  # used to authenticate integrity of the encrypted data
+    aad = get_random_bytes(16)  # used to authenticate integrity of the encrypted data
 
     # Generate AES-GCM (128 bit) key
     aesKey = get_random_bytes(16)
@@ -63,19 +63,19 @@ def make_bootloader() -> bool:
     update_line("${HOME}/chunkychunkchunkchunkchonkydinosaurs/bootloader/inc/secrets.h", "aesKey", aesKey.hex())
 
     # update secrets.h with the newly generated AAD 
-    #update_line("${HOME}/chunkychunkchunkchunkchonkydinosaurs/bootloader/inc/secrets.h", "aad", aad.hex())
+    update_line("${HOME}/chunkychunkchunkchunkchonkydinosaurs/bootloader/inc/secrets.h", "aad", aad.hex())
 
 
     # --------------------- DO NOT TOUCH THIS CODE ---------------------
     # Build the bootloader from source.
 
-    '''os.chdir(BOOTLOADER_DIR)
+    os.chdir(BOOTLOADER_DIR)
 
     subprocess.call("make clean", shell=True)
     status = subprocess.call("make")
 
     # Return True if make returned 0, otherwise return False.
-    return status == 0'''
+    return status == 0
 
     # --------------------- END OF UNTOUCHABLE CODE ---------------------
 
