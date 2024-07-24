@@ -27,36 +27,37 @@ def start_protect(version, message, outputMsg):
     """
     Start message creation and encryption
     its just bytes that we put at the beginning of fw_protected
-
-    First 1 byte: type (0x00)
-    Next 2 bytes: size (0x02)
-    Next 16 bytes: IV
-    Next 2 bytes: reease message size
-    Next x bytes: ciphertext with version number
-    Last 10 bytes: tag
+    
+    First 1 byte: type (0x01)
+    Next 4 bytes: size (0x04)
+    Next 2 bytes: version number
+    Next 473 bytes: Release message
     """
 
-    metadata = p16(version, endian='little') + p16(message, endian='little') 
+    metadata = p8(1, endian='little') + p64(size, endian='little') + p16(version, endian='little')
+    #TODO: pack message with PKCS-7, and then pack into 473 bytes 
 
     #----------------------ENCRYPTION----------------------------------
     #------------------------TODO: implement header to import key
     #with open(keyfile, "rb") as key:
     key = get_random_bytes(16)
 
-    header = b"header"
+    # header = b"header"
 
-    data = metadata
+    data = 
 
     cipher = AES.new(key, AES.MODE_GCM)
 
-    cipher.update(header)
+    # cipher.update(header)
 
     #encrypt data
     ciphertext, tag = cipher.encrypt_and_digest(data)
 
     #store everything in json file
-    json_k = [ 'nonce', 'header', 'ciphertext', 'tag' ]
-    json_v = [ b64encode(x).decode('utf-8') for x in (cipher.nonce, header, ciphertext, tag) ]
+    # json_k = [ 'nonce', 'header', 'ciphertext', 'tag' ]
+    json_k = ['nonce', 'ciphertext', 'tag']
+    # json_v = [ b64encode(x).decode('utf-8') for x in (cipher.nonce, header, ciphertext, tag) ]
+    json_v = [ b64encode(x).decode('utf-8') for x in (cipher.nonce, ciphertext, tag) ]
     outputMsg = json.dumps(dict(zip(json_k, json_v)))
 
     #--------------------------------------------------------------
