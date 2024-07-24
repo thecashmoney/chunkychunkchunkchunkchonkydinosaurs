@@ -12,10 +12,10 @@ the build outputs into the host tools directory for programming.
 It generates an AAD and a AES-GCM 128 bit cipher and stores them in secrets.h
 """
 
-
 import os
 import pathlib
 import subprocess
+from pwn import *
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 
@@ -36,7 +36,7 @@ def update_line(headerFile, varUpdate, value):
 
     # define pattern and newMsg
     pattern = f'define {varUpdate}'  # defines the pattern to look for
-    newMsg = f'#define {varUpdate} 0x{value}\n'  # defines the new msg that will be input into the file
+    newMsg = f'#define {varUpdate} 0x{value.hex()}\n'  # defines the new msg that will be input into the file
     
     # Update the line with the new value
     for i, line in enumerate(lines):
@@ -52,9 +52,11 @@ def update_line(headerFile, varUpdate, value):
     with open(headerFile, 'w') as file:
         file.writelines(lines)
     
+    print(f"Updated {varUpdate} to \"{value}\"")
     # Write the value to secret_build_output.txt
-    with open('../secret_build_output.txt', 'wb') as file:
-        file.write(bytearray(value.encode()))
+    with open('../secret_build_output.txt', 'a') as file:
+        for i in value:
+            file.write(chr(i))
 
 
 # Function to generate the keys and build the bootloader
@@ -65,12 +67,14 @@ def make_bootloader() -> bool:
     # Generate AES-GCM (128 bit) key
     aesKey = get_random_bytes(16)
 
+    with open('../secret_build_output.txt', 'r+') as file:
+        file.truncate(0)  # This will truncate the file to zero length
 
     # update secrets.h with the newly generated AES-GCM (128 bit) key
-    update_line("../bootloader/inc/secrets.h", "aesKey", aesKey.hex())
+    update_line("../bootloader/inc/secrets.h", "aesKey", aesKey)
 
     # update secrets.h with the newly generated AAD 
-    update_line("../bootloader/inc/secrets.h", "aad", aad.hex())
+    update_line("../bootloader/inc/secrets.h", "aad", aad)
 
 
     # --------------------- DO NOT TOUCH THIS CODE ---------------------
