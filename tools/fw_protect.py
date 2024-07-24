@@ -19,13 +19,14 @@ from pwn import *
 from Crypto.Util.Padding import pad, unpad
 import json
 from base64 import b64encode
+from base64 import b64decode
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 
 def ceildiv(a, b):
     return -(a // -b)
 
-def start_protect(total_size: int, version: int, message: str):
+def start_protect(size: int, version: int, message: str):
     """
     Start message creation and encryption
     its just bytes that we put at the beginning of fw_protected
@@ -40,16 +41,17 @@ def start_protect(total_size: int, version: int, message: str):
     last 470 bytes: 
     """
 
-    msg = message.encode('ascii')
+    msg = bytearray(message.encode('ascii'))
+
     metadata = []
-    rmsize = len(message)
+    rmsize = len(msg)
 
     if (len(msg) > 470):
         for i in range(0, (ceildiv(len(msg),471)-1)*471, 471):
-            metadata.append(p8(1, endian='little') + p16(version, endian='little') + p64(size, endian='little') + p16(rmsize, endian='little') + pack(msg, word_size=471, endianness='little'))
-        metadata.append(pad(p8(1, endian='little') + p16(version, endian='little') + p64(size, endian='little') + p16(rmsize, endian='little') + pack(msg[(ceildiv(len(msg),471)-1)*471:], word_size=470, endianness='little')), 480, style='iso7816')
+            metadata.append(p8(1, endian='little') + p16(version, endian='little') + p32(size, endian='little') + p16(rmsize, endian='little') + msg[i:i+471])
+        metadata.append(pad((p8(1, endian='little') + p16(version, endian='little') + p32(size, endian='little') + p16(rmsize, endian='little') + msg[(ceildiv(len(msg),471)-1)*471:]), block_size=480, style='iso7816'))
     else:
-        metadata.append(pad(p8(1, endian='little') + p16(version, endian='little') + p64(size, endian='little') + p16(rmsize, endian='little') + pack(msg, word_size=470, endianness='little')), 480, style='iso7816')
+        metadata.append(pad((p8(1, endian='little') + p16(version, endian='little') + p32(size, endian='little') + p16(rmsize, endian='little') + msg), block_size=480, style='iso7816'))
 
     
     #----------------------ENCRYPTION----------------------------------
@@ -57,24 +59,48 @@ def start_protect(total_size: int, version: int, message: str):
     #with open(keyfile, "rb") as key:
     key = get_random_bytes(16)
 
-    # header = b"header"
+    outputMsg = []
 
-    data = metadata[i]
+    #header = b"header"
+    for i in metadata:
+        data = i
 
-    cipher = AES.new(key, AES.MODE_GCM)
+        cipher = AES.new(key, AES.MODE_GCM)
 
-    # cipher.update(header)
+        #cipher.update(header)
 
-    #encrypt data
-    ciphertext, tag = cipher.encrypt_and_digest(data)
+        #encrypt data
+        ciphertext, tag = cipher.encrypt_and_digest(data)
+        nonce = cipher.nonce
+        outputMsg.append((ciphertext,tag,nonce))
+    
+    #-----------------------------------------------TEST: DECRYPT
+    for x in range(len(outputMsg)-1):
+        i = outputMsg[x]
+        ciphertext, tag, nonce = i
+        cipher = AES.new(key, AES.MODE_GCM, nonce=nonce)
 
-    #store everything in json file
-    # json_k = [ 'nonce', 'header', 'ciphertext', 'tag' ]
-    json_k = ['nonce', 'ciphertext', 'tag']
-    # json_v = [ b64encode(x).decode('utf-8') for x in (cipher.nonce, header, ciphertext, tag) ]
-    json_v = [ b64encode(x).decode('utf-8') for x in (cipher.nonce, ciphertext, tag) ]
-    outputMsg = json.dumps(dict(zip(json_k, json_v)))
-    print(outputMsg)
+        #cipher.update(jv['header'])
+
+        plaintext = cipher.decrypt_and_verify(ciphertext, tag)
+        print("Msg type: ", u8(plaintext[:1]))
+        print("Version number: ", u16(plaintext[1:3]))
+        print("Total size: ", u32(plaintext[3:7]))
+        print("Release msg size: ", u16(plaintext[7:9]))
+        print("Release msg: ", plaintext[9:480])
+    
+    lastChonk = outputMsg[-1]
+    ciphertext, tag, nonce = lastChonk
+
+    cipher = AES.new(key, AES.MODE_GCM, nonce=nonce)
+    plaintext = cipher.decrypt_and_verify(ciphertext, tag)
+
+    pt = unpad(plaintext, block_size=480, style='iso7816')
+    print("Msg type: ", u8(pt[:1]))
+    print("Version number: ", u16(pt[1:3]))
+    print("Total size: ", u32(pt[3:7]))
+    print("Release msg size: ", u16(pt[7:9]))
+    print("Release msg: ", pt[9:])
 
     #--------------------------------------------------------------
 
@@ -165,12 +191,12 @@ def protect_32_bytes(data):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Firmware Update Tool")
-    parser.add_argument("--totalsize", help="Total size of all data chunks (total firmware size)", required=True)
+    parser.add_argument("--size", help="Total size of all data chunks (total firmware size)", required=True)
     parser.add_argument("--version", help="Version number of this firmware.", required=True)
     parser.add_argument("--message", help="Release message for this firmware.", required=True)
     args = parser.parse_args()
 
-    start_protect(total_size=int(args.totalsize), version=int(args.version), message=args.message)
+    start_protect(size=int(args.size), version=int(args.version), message=args.message)
 
     # parser = argparse.ArgumentParser(description="Firmware Update Tool")
     # parser.add_argument("--infile", help="Path to the firmware image to protect.", required=True)
