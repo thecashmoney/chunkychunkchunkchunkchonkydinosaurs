@@ -16,37 +16,41 @@ ser = serial.Serial("/dev/ttyACM0", 115200)
 RESP_OK = b"\x00"
 FRAME_SIZE = 256
 
-IV = []
-tag = []
+IV = b''
+tag = b''
 
-ctr = b"\x00"
+ctr = 0
 
 for i in range(16):
-    IV.append(ctr)
-    tag.append(ctr + 1)
+    IV += p8(ctr, endian="little")
+    tag += p8(ctr + 1, endian="little")
     ctr += 1
 
 
+# WORKING
 def wait_for_update():
     ser.write(b"U")
     print("Waiting for bootloader to enter update mode...")
+    ctr = 1
     while ser.read(1).decode() != "U":
-        print("got a byte")
+        print(f"byte: {ctr}")
+        ctr += 1
         pass
 
 
-def send_IV_and_tag(ser, metadata, debug=False):
+def send_IV_and_tag(ser, debug=False):
     # IV = metadata[0:16]
     # tag = metadata[16:32]
-    
-    print("Packaged IV and tag")
 
     # Handshake for update
 
     ser.write(IV)
     ser.write(tag)
+    print("Packaged IV and tag")
+
     # Wait for an OK from the bootloader.
     resp = ser.read(1)
+    print("Resp: ", resp)
     if resp != RESP_OK:
         raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(resp)))
 
@@ -54,5 +58,5 @@ def send_IV_and_tag(ser, metadata, debug=False):
 
 if __name__ == "__main__":
     wait_for_update()
-    send_IV_and_tag()
+    send_IV_and_tag(ser)
     ser.close()
