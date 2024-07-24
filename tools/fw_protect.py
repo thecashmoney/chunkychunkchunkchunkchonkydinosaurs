@@ -56,8 +56,8 @@ def start_protect(size: int, version: int, message: str):
     
     #----------------------ENCRYPTION----------------------------------
     #------------------------TODO: implement header to import key
-    #with open(keyfile, "rb") as key:
-    key = get_random_bytes(16)
+    with open(secrets.h, "rb") as key:
+        key = get_random_bytes(16)
 
     outputMsg = []
 
@@ -74,7 +74,12 @@ def start_protect(size: int, version: int, message: str):
         nonce = cipher.nonce
         outputMsg.append((ciphertext,tag,nonce))
     
+
+
+    #--------------------------------------------TODO: write ciphertext over to a file
+
     #-----------------------------------------------TEST: DECRYPT
+    #------------------------------------------------NOTE: USE THIS FOR DECRYPTION, ITS WORKS GREAT, JUST CHANGE READING IN SO IT CAN READ FROM FILE
     for x in range(len(outputMsg)-1):
         i = outputMsg[x]
         ciphertext, tag, nonce = i
