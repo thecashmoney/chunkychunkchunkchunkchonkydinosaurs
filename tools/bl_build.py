@@ -28,6 +28,9 @@ def update_line(headerFile, varUpdate, value):
     # Expand environment variables in the file path
     headerFile = os.path.expandvars(headerFile)
 
+    # Make sure the varUpdate is in all caps
+    varUpdate = varUpdate.upper()
+
     # Read the existing content of the header file
     with open(headerFile, 'r') as file:
         lines = file.readlines()
