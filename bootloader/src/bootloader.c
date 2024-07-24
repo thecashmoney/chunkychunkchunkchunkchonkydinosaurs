@@ -115,6 +115,14 @@ int main(void) {
 }
 
 
+/*
+* Reads the packets sent by fw_update.py 
+* Sends the ciphertext to decrypt_ciphertext()
+*/
+void read_frame(void) {
+    continue;
+}
+
  /*
  * Load the firmware into flash.
  */
