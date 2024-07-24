@@ -51,6 +51,10 @@ def update_line(headerFile, varUpdate, value):
     # Write the updated content back to the header file
     with open(headerFile, 'w') as file:
         file.writelines(lines)
+    
+    # Write the value to secret_build_output.txt
+    with open('../secret_build_output.txt', 'wb') as file:
+        file.write(bytearray(value.encode()))
 
 
 # Function to generate the keys and build the bootloader
@@ -63,10 +67,10 @@ def make_bootloader() -> bool:
 
 
     # update secrets.h with the newly generated AES-GCM (128 bit) key
-    update_line("${HOME}/chunkychunkchunkchunkchonkydinosaurs/bootloader/inc/secrets.h", "aesKey", aesKey.hex())
+    update_line("../bootloader/inc/secrets.h", "aesKey", aesKey.hex())
 
     # update secrets.h with the newly generated AAD 
-    update_line("${HOME}/chunkychunkchunkchunkchonkydinosaurs/bootloader/inc/secrets.h", "aad", aad.hex())
+    update_line("../bootloader/inc/secrets.h", "aad", aad.hex())
 
 
     # --------------------- DO NOT TOUCH THIS CODE ---------------------
