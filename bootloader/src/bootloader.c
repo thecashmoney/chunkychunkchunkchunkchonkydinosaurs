@@ -7,7 +7,11 @@
 /*
 TODO:
 - add the thing that jayden said to add (i lowk forgot it uhmmmmmm trust tho)
-- add decryption (bootloader_decrypt)
+- add decryption (bootloader_decrypt) - check it probably doesnt work but lets goooo
+- change the value of index to actually be at the correct index 
+- find out how to obtain the key from the secrets.h
+- implement the check version function
+- 
 - add verification of packets (bootloader_verify)
 - add functions that prevent debugging in gdb
 */
@@ -125,9 +129,73 @@ int main(void) {
 }
 
 
+
+void unpad(uint8_t[] plaintext, uint8_t unpadded_plaintext[]) {
+    int index;
+    for(int i = 479; i >= 0; i--) {
+        if(plaintext[i] == 0x80) 
+            index = i;
+    }
+
+    for(int i = 0; i < index; i++) {
+        unpadded_plaintext[i] = plaintext[i];
+    }
+}
+
  /*
  * Load the firmware into flash.
  */
+
+
+uint8_t[] read_start_packet(uint8_t plaintext[480]){
+    uint8_t IV[16];
+    uint8_t tag[16];
+    uint8_t ciphertext[480];
+    Aes decrypt;
+    uint8_t authTag[16];
+
+    //auth tag length = 16 (?)
+
+    for(int i = 0; i < 16; i++) {
+        rcv = uart_read(UART0, BLOCKING, &resp);
+        IV[i] = (uint8_t) rcv;
+        printf("%d ", IV[i]);
+        //printing for testing purposes
+    }
+
+    printf("\n");
+
+    for(int i = 0; i <16; i++) {
+        rcv = uart_read(UARTO, BLOCKING, &resp);
+        tag[i] = (uint8_t) rcv;
+        printf("%d ", tag[i])
+    }
+
+    printf("\n");
+
+    for(int i = 0; i < 480; i++) {
+        rcv = uart_read(UARTO, BLOCKING, &resp);
+        ciphertext[i] = (uint8_t)rcv;
+        printf("%d", ciphertext[i]);
+    }
+
+    printf("\n");
+
+    wc_AesGcmSetKey(decrypt, key, sizeof(key));	
+    wc_AesGcmDecrypt(&enc, plaintext, ciphertext, sizeof(ciphertext), IV, sizeof(IV), authTag, sizeof(authTag), tag, sizeof(tag));
+
+    uint16_t version;
+
+    first_half = plaintext[1];
+    second_half = plaintext[2];
+    first_half = first_half << 8;
+    version = first_half |= second_half;
+
+    check_version(version); //NOT GOING TO IMPLEMENT THIS RN BC IM COPING BUT ITS SUPPOSED TO CHECK THE VERSION AND SEND PACKET BASED ON THIS
+
+    return plaintext;
+
+}
 void load_firmware(void) {
     int frame_length = 0;
     int read = 0;
@@ -135,24 +203,100 @@ void load_firmware(void) {
 
     uint32_t data_index = 0;
     uint32_t page_addr = FW_BASE;
-    uint32_t IV[16];
-    uint32_t tag[16]
-    uint32_t version = 0;
+    uint8_t IV[16];
+    uint8_t tag[16]
     uint32_t size = 0;
+    Aes decrypt;
+    uint8_t ciphertext[480];
+    final uint32_t CTEXT_SIZE = 480;
+    uint8_t plaintext[480];
+    uint8_t authTag[16];
+    uint8_t type;
+    uint16_t version;
+    uint16_t rel_msg_size;
+    uint8_t max_frames;
+    uint8_t current_frame = 0;
+    
+    //auth tag length = 16 (?)
 
     for(int i = 0; i < 16; i++) {
         rcv = uart_read(UART0, BLOCKING, &resp);
-        IV[15-i] = (uint32_t) rcv;
-        printf("%d ", IV[15-i]);
+        IV[i] = (uint8_t) rcv;
+        printf("%d ", IV[i]);
         //printing for testing purposes
     }
 
     printf("\n");
 
-    for(int i = 15; i >=0; i--) {
+    for(int i = 0; i <16; i++) {
         rcv = uart_read(UARTO, BLOCKING, &resp);
-        tag[i] = (uint32_t) rcv;
+        tag[i] = (uint8_t) rcv;
         printf("%d ", tag[i])
+    }
+
+    printf("\n");
+
+    for(int i = 0; i < 480; i++) {
+        rcv = uart_read(UARTO, BLOCKING, &resp);
+        ciphertext[i] = (uint8_t)rcv;
+        printf("%d", ciphertext[i]);
+    }
+
+    printf("\n");
+
+   wc_AesGcmSetKey(decrypt, key, sizeof(key));	
+    wc_AesGcmDecrypt(&enc, plaintext, ciphertext, sizeof(ciphertext), IV, sizeof(IV), authTag, sizeof(authTag), tag, sizeof(tag));
+    for(int i = 0; i < sizeof(plaintext); i++) {
+        printf("%c", plaintext[i]);
+    }
+
+    type = plaintext[0];
+    metadata = malloc(sizeof(uint8_t) * 480); /* allocate memory for 480 bytes's */
+    if (!metadata) { /* If data == 0 after the call to malloc, allocation failed for some reason */
+        perror("Error allocating memory");
+        abort();
+    }
+  /* at this point, we know that data points to a valid block of memory.
+     Remember, however, that this memory is not initialized in any way -- it contains garbage.
+     Let's start by clearing it. */
+
+    memset(metadata, 0, sizeof(uint8_t)*datacount);
+    if(type == 0) {
+        first_half = plaintext[1];
+        second_half = plaintext[2];
+        first_half = first_half << 8;
+        version = first_half |= second_half;
+
+        size = plaintext[3] << 24 |= plaintext[4] << 16 | plaintext[5] << 8 | plaintext[6];
+        rel_msg_size = plaintext[7] << 8 |= plaintext[8];
+        if(rel_msg_size % 470 == 0) {
+            max_frames = rel_msg_size / 470;
+        } else {
+            max_frames = (rel_msg_size / 470) + 1
+        }
+        metadata = realloc(metadata, sizeof(uint8_t) * rel_msg_size);
+        int index = 0;
+        //index is not 0 please change this to what the actual index of the release message is (i cant do math rn)
+        
+        while(current_frame != max_frames) {
+            for(int i = index; i < sizeof(plaintext); i++) {
+                metadata[index] = plaintext[i];
+                index++;
+            }
+            plaintext = read_packet(plaintext);
+            //this is so scuffed im crying bru
+        }
+
+        uint8_t unpadded_plaintext[480];
+        unpad(plaintext, unpadded_plaintext);
+        for(int i = 0; i < sizeof(metadata); i++) {
+            metadata[i] = unpadded_plaintext[i]
+        }
+        //testing metadata
+
+        for(int i = 0; i < sizeof(metadata); i++) {
+            printf("%c", metadata[i]);
+        }
     }
 
 
