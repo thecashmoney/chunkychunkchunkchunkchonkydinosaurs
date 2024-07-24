@@ -11,11 +11,14 @@ TODO:
 - change the value of index to actually be at the correct index 
 - find out how to obtain the key from the secrets.h
 - implement the check version function
-- 
+- check for the size of the frame to prevent buffer overflow
+- make sure the first packet sent is not the end frame
 - add verification of packets (bootloader_verify)
 - add functions that prevent debugging in gdb
 */
 
+
+//ctrl r reverse searches the recent commands that were entered into the terminal
 #include "bootloader.h"
 
 // Hardware Imports
@@ -204,7 +207,7 @@ void load_firmware(void) {
     uint32_t data_index = 0;
     uint32_t page_addr = FW_BASE;
     uint8_t IV[16];
-    uint8_t tag[16]
+    uint8_t tag[16];
     uint32_t size = 0;
     Aes decrypt;
     uint8_t ciphertext[480];
@@ -244,7 +247,7 @@ void load_firmware(void) {
 
     printf("\n");
 
-   wc_AesGcmSetKey(decrypt, key, sizeof(key));	
+    wc_AesGcmSetKey(decrypt, key, sizeof(key));	
     wc_AesGcmDecrypt(&enc, plaintext, ciphertext, sizeof(ciphertext), IV, sizeof(IV), authTag, sizeof(authTag), tag, sizeof(tag));
     for(int i = 0; i < sizeof(plaintext); i++) {
         printf("%c", plaintext[i]);
@@ -260,7 +263,7 @@ void load_firmware(void) {
      Remember, however, that this memory is not initialized in any way -- it contains garbage.
      Let's start by clearing it. */
 
-    memset(metadata, 0, sizeof(uint8_t)*datacount);
+    memset(metadata, 0, sizeof(uint8_t)*480);
     if(type == 0) {
         first_half = plaintext[1];
         second_half = plaintext[2];
@@ -269,28 +272,29 @@ void load_firmware(void) {
 
         size = plaintext[3] << 24 |= plaintext[4] << 16 | plaintext[5] << 8 | plaintext[6];
         rel_msg_size = plaintext[7] << 8 |= plaintext[8];
-        if(rel_msg_size % 470 == 0) {
-            max_frames = rel_msg_size / 470;
+        if(rel_msg_size % 471 == 0) {
+            max_frames = rel_msg_size / 471;
         } else {
-            max_frames = (rel_msg_size / 470) + 1
+            max_frames = (rel_msg_size / 471) + 1;
         }
         metadata = realloc(metadata, sizeof(uint8_t) * rel_msg_size);
         int index = 0;
         //index is not 0 please change this to what the actual index of the release message is (i cant do math rn)
         
-        while(current_frame != max_frames) {
+        while(current_frame != max_frames-1) {
             for(int i = index; i < sizeof(plaintext); i++) {
                 metadata[index] = plaintext[i];
                 index++;
             }
             plaintext = read_packet(plaintext);
             //this is so scuffed im crying bru
+            current_frame++;
         }
 
         uint8_t unpadded_plaintext[480];
         unpad(plaintext, unpadded_plaintext);
-        for(int i = 0; i < sizeof(metadata); i++) {
-            metadata[i] = unpadded_plaintext[i]
+        for(int i = index; i < sizeof(metadata); i++) {
+            metadata[i] = unpadded_plaintext[i];
         }
         //testing metadata
 
