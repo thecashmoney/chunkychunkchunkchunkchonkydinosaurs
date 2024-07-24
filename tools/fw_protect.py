@@ -109,38 +109,51 @@ def protect_body(data):
 
     Returns: a frame containing the frame type, IV, encrypted data, tag, and padding
     """
+    body = bytearray(0)
 
     with open("../secret_build_output.txt", "rb") as keyfile:
         key = keyfile.read(16)
         aad = keyfile.read(16)
 
-    # If the data is empty, return an empty byte array
-    if data is None:
-        return bytearray(0)
-    # Pad the data to be a multiple of 16 bytes
-    elif data % 32 != 0:
-        data = pad(data, 16)
+    index = 0
+    while index < len(data):
+        # Create the frame buffer
+        frame = bytearray(512)
 
-    # Create the frame buffer
-    frame = bytearray(512)
+        # Create the IV / nonce
+        iv = get_random_bytes(16)
+        frame[0:16] = iv
 
-    # Create the IV / nonce
-    iv = get_random_bytes(16)
-    frame[0:16] = iv
+        ### Creating plaintext
+        # Adding frame type code
+        plaintext = bytearray(0)
+        plaintext += 0x02
+        # Adding firmware plaintext
+        if len(data) - index < (480 - len(plaintext)):
+            # Pad the data if there is less than 479 bytes left of plaintxt
+            plaintext += data[index:]
+            plaintext = pad(plaintext, 480, style='iso7816')
+        else:
+            # Add 479 bytes of plaintext
+            plaintext += data[index:index + 479]
 
-    ### Creating plaintext
-    # Adding frame type code
-    plaintext = bytearray(0)
-    plaintext += 0x01
-    # Adding firmware plaintext
+        index += 479
 
-    # Encrypt the data
-    cipher = AES.new(key, AES.MODE_GCM, nonce=iv, mac_len=16)
-    cipher.add(aad)
-    ciphertext, tag = cipher.encrypt_and_digest(data)
-    plaintext += ciphertext
-    plaintext += tag
-    plaintext = pad(plaintext, 480, style='iso7816')
+        # Encrypt the data
+        cipher = AES.new(key, AES.MODE_GCM, nonce=iv, mac_len=16)
+        cipher.add(aad)
+        ciphertext, tag = cipher.encrypt_and_digest(plaintext)
+
+        # Add the tag to the frame
+        frame[16:32] = tag
+
+        # Add the ciphertext to the frame
+        frame[32:] = ciphertext
+
+
+        # Return the key and the encrypted data
+        frame[16:] = plaintext
+        index += 32
 
 
     # Return the key and the encrypted data
