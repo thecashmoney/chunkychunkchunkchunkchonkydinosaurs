@@ -150,11 +150,7 @@ def protect_body(data):
         # Add the ciphertext to the frame
         frame[32:] = ciphertext
 
-
-        # Return the key and the encrypted data
-        frame[16:] = plaintext
-        index += 32
-
+        # Add the frame to the body
         body += frame
 
 
