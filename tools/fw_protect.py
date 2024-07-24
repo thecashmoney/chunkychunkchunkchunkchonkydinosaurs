@@ -22,21 +22,36 @@ from base64 import b64encode
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 
+def ceildiv(a, b):
+    return -(a // -b)
 
-def start_protect(version, message, outputMsg):
+def start_protect(total_size: int, version: int, message: str):
     """
     Start message creation and encryption
     its just bytes that we put at the beginning of fw_protected
     
     First 1 byte: type (0x01)
-    Next 4 bytes: size (0x04)
     Next 2 bytes: version number
-    Next 473 bytes: Release message
+    Next 4 bytes: size (0x04)
+    Next 2 bytes: Release message size
+    Next 471 bytes: Release message
+
+    for last frame:
+    last 470 bytes: 
     """
 
-    metadata = p8(1, endian='little') + p64(size, endian='little') + p16(version, endian='little')
-    #TODO: pack message with PKCS-7, and then pack into 473 bytes 
+    msg = message.encode('ascii')
+    metadata = []
+    rmsize = len(message)
 
+    if (len(msg) > 470):
+        for i in range(0, (ceildiv(len(msg),471)-1)*471, 471):
+            metadata.append(p8(1, endian='little') + p16(version, endian='little') + p64(size, endian='little') + p16(rmsize, endian='little') + pack(msg, word_size=471, endianness='little'))
+        metadata.append(pad(p8(1, endian='little') + p16(version, endian='little') + p64(size, endian='little') + p16(rmsize, endian='little') + pack(msg[(ceildiv(len(msg),471)-1)*471:], word_size=470, endianness='little')), 480, style='iso7816')
+    else:
+        metadata.append(pad(p8(1, endian='little') + p16(version, endian='little') + p64(size, endian='little') + p16(rmsize, endian='little') + pack(msg, word_size=470, endianness='little')), 480, style='iso7816')
+
+    
     #----------------------ENCRYPTION----------------------------------
     #------------------------TODO: implement header to import key
     #with open(keyfile, "rb") as key:
@@ -44,7 +59,7 @@ def start_protect(version, message, outputMsg):
 
     # header = b"header"
 
-    data = 
+    data = metadata[i]
 
     cipher = AES.new(key, AES.MODE_GCM)
 
@@ -59,6 +74,7 @@ def start_protect(version, message, outputMsg):
     # json_v = [ b64encode(x).decode('utf-8') for x in (cipher.nonce, header, ciphertext, tag) ]
     json_v = [ b64encode(x).decode('utf-8') for x in (cipher.nonce, ciphertext, tag) ]
     outputMsg = json.dumps(dict(zip(json_k, json_v)))
+    print(outputMsg)
 
     #--------------------------------------------------------------
 
@@ -149,10 +165,18 @@ def protect_32_bytes(data):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Firmware Update Tool")
-    parser.add_argument("--infile", help="Path to the firmware image to protect.", required=True)
-    parser.add_argument("--outfile", help="Filename for the output firmware.", required=True)
+    parser.add_argument("--totalsize", help="Total size of all data chunks (total firmware size)", required=True)
     parser.add_argument("--version", help="Version number of this firmware.", required=True)
     parser.add_argument("--message", help="Release message for this firmware.", required=True)
     args = parser.parse_args()
 
-    protect_firmware(infile=args.infile, outfile=args.outfile, version=int(args.version), message=args.message)
+    start_protect(total_size=int(args.totalsize), version=int(args.version), message=args.message)
+
+    # parser = argparse.ArgumentParser(description="Firmware Update Tool")
+    # parser.add_argument("--infile", help="Path to the firmware image to protect.", required=True)
+    # parser.add_argument("--outfile", help="Filename for the output firmware.", required=True)
+    # parser.add_argument("--version", help="Version number of this firmware.", required=True)
+    # parser.add_argument("--message", help="Release message for this firmware.", required=True)
+    # args = parser.parse_args()
+
+    # protect_firmware(infile=args.infile, outfile=args.outfile, version=int(args.version), message=args.message)
