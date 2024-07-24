@@ -115,7 +115,6 @@ def protect_body(data):
 
     with open("../secret_build_output.txt", "rb") as keyfile:
         key = keyfile.read(16)
-        aad = keyfile.read(16)
 
     index = 0
     while index < len(data):
@@ -143,7 +142,6 @@ def protect_body(data):
 
         # Encrypt the data
         cipher = AES.new(key, AES.MODE_GCM, nonce=iv, mac_len=16)
-        cipher.add(aad)
         ciphertext, tag = cipher.encrypt_and_digest(plaintext)
 
         # Add the tag to the frame
