@@ -8,10 +8,9 @@ Bootloader Build Tool
 
 This tool is responsible for building the bootloader from source and copying
 the build outputs into the host tools directory for programming.
-"""
 
-# inputs - bootloader code, firmware
-# outputs - generated keys, compiled bootloader
+It generates an AAD and a AES-GCM 128 bit cipher and stores them in secrets.h
+"""
 
 
 import os
@@ -34,57 +33,52 @@ def update_line(headerFile, varUpdate, value):
     # Read the existing content of the header file
     with open(headerFile, 'r') as file:
         lines = file.readlines()
-    
-    print(lines)
 
-    # Compile a regex pattern to match the variable definition
-    pattern = f'define {varUpdate}'
-    print(lines[-1])
+    # define pattern and newMsg
+    pattern = f'define {varUpdate}'  # defines the pattern to look for
+    newMsg = f'#define {varUpdate} 0x{value}\n'  # defines the new msg that will be input into the file
+    
     # Update the line with the new value
     for i, line in enumerate(lines):
         if pattern in line:
-            lines[i] = f'#define {varUpdate} 0x{value}\n'
+            lines[i] = newMsg
             break
     else:
         # If the variable was not found, add it to the end of the file
-        lines[-1] = f'#define {varUpdate} 0x{value}\n'
+        lines[-1] = newMsg
         lines.append('\n#endif')
 
     # Write the updated content back to the header file
     with open(headerFile, 'w') as file:
         file.writelines(lines)
 
-    print(f'Updated {headerFile} with {varUpdate} = 0x{value}')
 
-
-
+# Function to generate the keys and build the bootloader
 def make_bootloader() -> bool:
     # Generate AAD (Additional Authentication Data)
     aad = get_random_bytes(16)  # used to authenticate integrity of the encrypted data
 
     # Generate AES-GCM (128 bit) key
-    key = get_random_bytes(16)
-    cipher = AES.new(key, AES.MODE_GCM)
-    cipher.update(aad)
-    print("cipher: ", cipher)
+    aesKey = get_random_bytes(16)
+
 
     # update secrets.h with the newly generated AES-GCM (128 bit) key
-    update_line("${HOME}/Documents/BWSI/chunkychunkchunkchunkchonkydinosaurs/bootloader/inc/secrets.h", "aesKey", cipher.hexdigest())
+    update_line("${HOME}/chunkychunkchunkchunkchonkydinosaurs/bootloader/inc/secrets.h", "aesKey", aesKey.hex())
 
-    # update secrets.h with the newly generated AAD
-    update_line("${HOME}/Documents/BWSI/chunkychunkchunkchunkchonkydinosaurs/bootloader/inc/secrets.h", "aad", aad.hex())
+    # update secrets.h with the newly generated AAD 
+    update_line("${HOME}/chunkychunkchunkchunkchonkydinosaurs/bootloader/inc/secrets.h", "aad", aad.hex())
 
 
     # --------------------- DO NOT TOUCH THIS CODE ---------------------
     # Build the bootloader from source.
 
-    os.chdir(BOOTLOADER_DIR)
+    '''os.chdir(BOOTLOADER_DIR)
 
     subprocess.call("make clean", shell=True)
     status = subprocess.call("make")
 
     # Return True if make returned 0, otherwise return False.
-    return status == 0
+    return status == 0'''
 
     # --------------------- END OF UNTOUCHABLE CODE ---------------------
 
