@@ -61,5 +61,6 @@ venv.bak/
 bootloader/inc/secrets.h
 tools/secret_build_output.txt
 secret_build_output.txt
+tools/protected_output.bin
 
 secret_build_output.txt
