@@ -1,6 +1,17 @@
 // Copyright 2024 The MITRE Corporation. ALL RIGHTS RESERVED
 // Approved for public release. Distribution unlimited 23-02181-25.
 
+
+//NOTE: UNTESTED CODE, BUT PUSHING TO BOOTLOADER_DECRYPT SO THAT I CAN START WORKING ON MESSAGE DECRYPTION
+
+/*
+TODO:
+- add the thing that jayden said to add (i lowk forgot it uhmmmmmm trust tho)
+- add decryption (bootloader_decrypt)
+- add verification of packets (bootloader_verify)
+- add functions that prevent debugging in gdb
+*/
+
 #include "bootloader.h"
 
 // Hardware Imports
@@ -124,15 +135,25 @@ void load_firmware(void) {
 
     uint32_t data_index = 0;
     uint32_t page_addr = FW_BASE;
-    uint32_t message_type;
+    uint32_t IV[16];
+    uint32_t tag[16]
     uint32_t version = 0;
     uint32_t size = 0;
-    uint32_t IV[16];
-    uint32_t encrypted_ver_num;
-    uint32_t encrypted_release_msg_size;
-    uint32_t decrypted_release_msg_size;
-    uint32_t decrypted_release_msg[decrypted_release_msg_size];
 
+    for(int i = 0; i < 16; i++) {
+        rcv = uart_read(UART0, BLOCKING, &resp);
+        IV[15-i] = (uint32_t) rcv;
+        printf("%d ", IV[15-i]);
+        //printing for testing purposes
+    }
+
+    printf("\n");
+
+    for(int i = 15; i >=0; i--) {
+        rcv = uart_read(UARTO, BLOCKING, &resp);
+        tag[i] = (uint32_t) rcv;
+        printf("%d ", tag[i])
+    }
 
 
     //original starter code: keeping for reference cuz i lowk dk what im doing lmao
@@ -148,47 +169,6 @@ void load_firmware(void) {
     // rcv = uart_read(UART0, BLOCKING, &read);
     // size |= (uint32_t)rcv << 8;
 
-
-    //Get message type (pls be right) - only one byte
-    rcv = uart_read(UART0, BLOCKING, &read);
-    message_type = (uint32_t)rcv;
-
-    if(message_type == 0) {
-        //Get message size
-        rcv = uart_read(UART0, BLOCKING, &read);
-        size = (uint32_t)rcv;
-        rcv = uart_read(UART0, BLOCKING, &read);
-        size |= (uint32_t)rcv << 8;
-
-        //Get IV: this is probably wrong :(((((((((
-
-        for(int i = 16; i > 0; i--) {
-            rcv = uart_read(UART0, BLOCKING, &read);
-            IV[16-i] = (uint32_t)rcv;
-        }
-
-        //Get encrypted version number
-        rcv = uart_read(UART0, BLOCKING, &read);
-        encrypted_ver_num = (uint32_t)rcv;
-        rcv = uart_read(UART0, BLOCKING, &read);
-        encrypted_ver_num |= (uint32_t)rcv << 8;
-
-        // Get encrypted release message size
-        rcv = uart_read(UART0, BLOCKING, &read);
-        encrypted_release_msg_size = (uint32_t)rcv;
-        rcv = uart_read(UART0, BLOCKING, &read);
-        encrypted_release_msg_size |= (uint32_t)rcv << 8;
-
-        //Get decrypted release message
-        for(int i = decrypted_release_msg_size-1; i >=0; i--) {
-            rcv = uart_read(UART0, BLOCKING, &read);
-            decrypted_release_msg[decrypted_release_msg_size - i] = (uint32_t)rcv;
-        }
-    } else if (message_type == 1) {
-        //read data
-    } else if (message_type == 2){
-        //send end frame
-    }
 
     // Compare to old version and abort if older (note special case for version 0).
     // If no metadata available (0xFFFF), accept version 1
