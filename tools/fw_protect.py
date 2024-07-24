@@ -109,10 +109,13 @@ def protect_body(data):
 
     Returns: a frame containing the frame type, IV, encrypted data, tag, and padding
     """
+
+    # This is to hold all the frames
     body = bytearray(0)
 
     with open("../secret_build_output.txt", "rb") as keyfile:
         key = keyfile.read(16)
+        aad = keyfile.read(16)
 
     index = 0
     while index < len(data):
@@ -140,6 +143,7 @@ def protect_body(data):
 
         # Encrypt the data
         cipher = AES.new(key, AES.MODE_GCM, nonce=iv, mac_len=16)
+        cipher.add(aad)
         ciphertext, tag = cipher.encrypt_and_digest(plaintext)
 
         # Add the tag to the frame
@@ -153,9 +157,11 @@ def protect_body(data):
         frame[16:] = plaintext
         index += 32
 
+        body += frame
 
-    # Return the key and the encrypted data
-    return frame
+
+    # Return the entire protected firmware
+    return body
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Firmware Update Tool")
