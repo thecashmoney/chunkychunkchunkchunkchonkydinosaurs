@@ -128,7 +128,7 @@ def protect_body(data):
         ### Creating plaintext
         # Adding frame type code
         plaintext = bytearray(0)
-        plaintext += '\x02'
+        plaintext += b'\x02'
         # Adding firmware plaintext
         if len(data) - index < (480 - len(plaintext)):
             # Pad the data if there is less than 479 bytes left of plaintxt
