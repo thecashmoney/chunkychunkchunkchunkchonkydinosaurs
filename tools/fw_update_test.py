@@ -115,7 +115,6 @@ def send_frame(ser, data, debug=False):
         print("Resp: {}".format(ord(resp)))
 
 
-
 if __name__ == "__main__":
     with open("tester", "rb") as f:
         data = f.read()
