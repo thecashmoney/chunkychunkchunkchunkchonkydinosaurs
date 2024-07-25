@@ -40,7 +40,6 @@
 
 
 typedef struct pltxt_start_frame {
-    uint16_t    frame_num;
     uint8_t     type;
     uint16_t    version_num;
     uint32_t    total_size;
@@ -50,7 +49,6 @@ typedef struct pltxt_start_frame {
 
 
 typedef struct pltxt_body_frame {
-    uint16_t    frame_num;
     uint8_t     type;
     uint8_t     plaintext[477];
 } pltxt_body_frame;
