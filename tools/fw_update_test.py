@@ -53,7 +53,15 @@ def send_IV_and_tag(ser, debug=False):
     print("Resp: ", resp)
     if resp != RESP_OK:
         raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(resp)))
+    
+    # TODO: Remove the vi & gat debug statements later
+    '''vi = b''
+    vi = ser.read(16)
+    print("IV: ", vi)
 
+    gat = b''
+    gat = ser.read(16)
+    print(f"Tag: {gat}")'''
 
 
 if __name__ == "__main__":

@@ -115,91 +115,151 @@ int main(void) {
 }
 
 
+// Reads in the IV and the tag from fw_update.py
+void receive_IV_tag(uint8_t *IV, uint8_t *tag)
+{
+    int read;
+    uint32_t rcv;
+
+    // Reads the IV
+    for (int i=0; i<16; i++)
+    {
+        rcv = uart_read(UART0, BLOCKING, &read);
+        IV[i] = (uint8_t) rcv;
+    }
+
+    // Reads the tag
+    for (int i=0; i<16; i++)
+    {
+        rcv = uart_read(UART0, BLOCKING, &read);
+        tag[i] = (uint8_t) rcv;
+    }
+}
+
+/*
+* Reads the packets sent by fw_update.py 
+* Sends the ciphertext to decrypt_ciphertext()
+*/
+void read_frame() 
+{
+    // defining buffers to store the IV and the tag
+    uint8_t IV[16];
+    uint8_t tag[16];
+
+    // read the IV and tag and store them in the IV/tag buffers
+    receive_IV_tag(&IV, &tag); 
+
+    // send back a null byte 
+    uart_write(UART0, OK);
+
+
+
+    // TODO: Remove the testing for loops later
+    /*for (int i=0; i<16; i++)
+    {
+        uart_write(UART0, IV[i]);
+    }
+    //uart_write(UART0, OK);
+    
+    for (int i=0; i<16; i++)
+    {
+        uart_write(UART0, tag[i]);
+    }*/
+}
+
+
  /*
  * Load the firmware into flash.
  */
 void load_firmware(void) {
-    int frame_length = 0;
-    int read = 0;
-    uint32_t rcv = 0;
 
-    uint32_t data_index = 0;
-    uint32_t page_addr = FW_BASE;
-    uint32_t version = 0;
-    uint32_t size = 0;
+    /* -------------------------------- TESTING CODE -------------------------------- */
 
-    // Get version.
-    rcv = uart_read(UART0, BLOCKING, &read);
-    version = (uint32_t)rcv;
-    rcv = uart_read(UART0, BLOCKING, &read);
-    version |= (uint32_t)rcv << 8;
+    read_frame();
 
-    // Get size.
-    rcv = uart_read(UART0, BLOCKING, &read);
-    size = (uint32_t)rcv;
-    rcv = uart_read(UART0, BLOCKING, &read);
-    size |= (uint32_t)rcv << 8;
+    /* -------------------------------- END OF TEST CODE -------------------------------- */
 
-    // Compare to old version and abort if older (note special case for version 0).
-    // If no metadata available (0xFFFF), accept version 1
-    uint16_t old_version = *fw_version_address;
-    if (old_version == 0xFFFF) {
-        old_version = 1;
-    }
+    // int frame_length = 0;
+    // int read = 0;
+    // uint32_t rcv = 0;
 
-    if (version != 0 && version < old_version) {
-        uart_write(UART0, ERROR); // Reject the metadata.
-        SysCtlReset();            // Reset device
-        return;
-    } else if (version == 0) {
-        // If debug firmware, don't change version
-        version = old_version;
-    }
+    // uint32_t data_index = 0;
+    // uint32_t page_addr = FW_BASE;
+    // uint32_t version = 0;
+    // uint32_t size = 0;
 
-    // Write new firmware size and version to Flash
-    // Create 32 bit word for flash programming, version is at lower address, size is at higher address
-    uint32_t metadata = ((size & 0xFFFF) << 16) | (version & 0xFFFF);
-    program_flash((uint8_t *) METADATA_BASE, (uint8_t *)(&metadata), 4);
+    // // Get version.
+    // rcv = uart_read(UART0, BLOCKING, &read);
+    // version = (uint32_t)rcv;
+    // rcv = uart_read(UART0, BLOCKING, &read);
+    // version |= (uint32_t)rcv << 8;
 
-    uart_write(UART0, OK); // Acknowledge the metadata.
+    // // Get size.
+    // rcv = uart_read(UART0, BLOCKING, &read);
+    // size = (uint32_t)rcv;
+    // rcv = uart_read(UART0, BLOCKING, &read);
+    // size |= (uint32_t)rcv << 8;
 
-    /* Loop here until you can get all your characters and stuff */
-    while (1) {
+    // // Compare to old version and abort if older (note special case for version 0).
+    // // If no metadata available (0xFFFF), accept version 1
+    // uint16_t old_version = *fw_version_address;
+    // if (old_version == 0xFFFF) {
+    //     old_version = 1;
+    // }
 
-        // Get two bytes for the length.
-        rcv = uart_read(UART0, BLOCKING, &read);
-        frame_length = (int)rcv << 8;
-        rcv = uart_read(UART0, BLOCKING, &read);
-        frame_length += (int)rcv;
+    // if (version != 0 && version < old_version) {
+    //     uart_write(UART0, ERROR); // Reject the metadata.
+    //     SysCtlReset();            // Reset device
+    //     return;
+    // } else if (version == 0) {
+    //     // If debug firmware, don't change version
+    //     version = old_version;
+    // }
 
-        // Get the number of bytes specified
-        for (int i = 0; i < frame_length; ++i) {
-            data[data_index] = uart_read(UART0, BLOCKING, &read);
-            data_index += 1;
-        } // for
+    // // Write new firmware size and version to Flash
+    // // Create 32 bit word for flash programming, version is at lower address, size is at higher address
+    // uint32_t metadata = ((size & 0xFFFF) << 16) | (version & 0xFFFF);
+    // program_flash((uint8_t *) METADATA_BASE, (uint8_t *)(&metadata), 4);
 
-        // If we filed our page buffer, program it
-        if (data_index == FLASH_PAGESIZE || frame_length == 0) {
-            // Try to write flash and check for error
-            if (program_flash((uint8_t *) page_addr, data, data_index)) {
-                uart_write(UART0, ERROR); // Reject the firmware
-                SysCtlReset();            // Reset device
-                return;
-            }
+    // uart_write(UART0, OK); // Acknowledge the metadata.
 
-            // Update to next page
-            page_addr += FLASH_PAGESIZE;
-            data_index = 0;
+    // /* Loop here until you can get all your characters and stuff */
+    // while (1) {
 
-            // If at end of firmware, go to main
-            if (frame_length == 0) {
-                uart_write(UART0, OK);
-                break;
-            }
-        } // if
+    //     // Get two bytes for the length.
+    //     rcv = uart_read(UART0, BLOCKING, &read);
+    //     frame_length = (int)rcv << 8;
+    //     rcv = uart_read(UART0, BLOCKING, &read);
+    //     frame_length += (int)rcv;
 
-        uart_write(UART0, OK); // Acknowledge the frame.
-    } // while(1)
+    //     // Get the number of bytes specified
+    //     for (int i = 0; i < frame_length; ++i) {
+    //         data[data_index] = uart_read(UART0, BLOCKING, &read);
+    //         data_index += 1;
+    //     } // for
+
+    //     // If we filed our page buffer, program it
+    //     if (data_index == FLASH_PAGESIZE || frame_length == 0) {
+    //         // Try to write flash and check for error
+    //         if (program_flash((uint8_t *) page_addr, data, data_index)) {
+    //             uart_write(UART0, ERROR); // Reject the firmware
+    //             SysCtlReset();            // Reset device
+    //             return;
+    //         }
+
+    //         // Update to next page
+    //         page_addr += FLASH_PAGESIZE;
+    //         data_index = 0;
+
+    //         // If at end of firmware, go to main
+    //         if (frame_length == 0) {
+    //             uart_write(UART0, OK);
+    //             break;
+    //         }
+    //     } // if
+
+    //     uart_write(UART0, OK); // Acknowledge the frame.
+    // } // while(1)
 }
 
 /*
