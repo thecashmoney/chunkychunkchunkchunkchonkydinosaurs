@@ -159,7 +159,7 @@ void read_frame()
     // Create a generic frame struct
     generic_frame frame;
 
-    // read the IV and tag and store them in the start frame struct
+    // read the IV and tag and store them in the generic_frame struct
     receive_IV_tag(frame.IV, frame.tag); 
 
     // send back a null byte 
@@ -170,15 +170,17 @@ void read_frame()
     for (int i=0; i<16; i++)
     {
         uart_write(UART0, frame.IV[i]);
-    }
-    //uart_write(UART0, OK);
-    
+    }    
     for (int i=0; i<16; i++)
     {
         uart_write(UART0, frame.tag[i]);
     }
 
+    // read the ciphertext and store it in the generic_frame struct
     receive_ciphertext(frame.ciphertext);
+
+    // send back a null byte 
+    uart_write(UART0, OK);
 
     for (int i=0; i<480; i++)
     {
