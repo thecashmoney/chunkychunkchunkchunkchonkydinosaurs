@@ -48,10 +48,10 @@ def start_protect(size: int, version: int, message: str):
 
     if (len(msg) > 470):
         for i in range(0, (ceildiv(len(msg),471)-1)*471, 471):
-            metadata.append(p8(1, endian='little') + p16(version, endian='little') + p32(size, endian='little') + p16(rmsize, endian='little') + msg[i:i+471])
-        metadata.append(pad((p8(1, endian='little') + p16(version, endian='little') + p32(size, endian='little') + p16(rmsize, endian='little') + msg[(ceildiv(len(msg),471)-1)*471:]), block_size=480, style='iso7816'))
+            metadata.append(p8(0, endian='little') + p16(version, endian='little') + p32(size, endian='little') + p16(rmsize, endian='little') + msg[i:i+471])
+        metadata.append(pad((p8(0, endian='little') + p16(version, endian='little') + p32(size, endian='little') + p16(rmsize, endian='little') + msg[(ceildiv(len(msg),471)-1)*471:]), block_size=480, style='iso7816'))
     else:
-        metadata.append(pad((p8(1, endian='little') + p16(version, endian='little') + p32(size, endian='little') + p16(rmsize, endian='little') + msg), block_size=480, style='iso7816'))
+        metadata.append(pad((p8(0, endian='little') + p16(version, endian='little') + p32(size, endian='little') + p16(rmsize, endian='little') + msg), block_size=480, style='iso7816'))
 
     
     #----------------------ENCRYPTION----------------------------------
@@ -78,42 +78,6 @@ def start_protect(size: int, version: int, message: str):
             iv, tag, ciphertext = i
             f.write(iv + tag + ciphertext)
 
-
-    #-----------------------------------------------TEST: DECRYPT
-    #------------------NOTE: USE THIS FOR DECRYPTION, ITS WORKS GREAT
-    #------------------NOTE: Delete after using (its veryyy bad if we keep this)
-    with open("protected_output.bin", "rb") as f:
-        out = f.read()
-        for x in range(0, len(out)-512, 512):
-            i = out[x:x+512]
-            iv = i[:16]
-            tag = i[16:32]
-            ciphertext = i[32:]
-            cipher = AES.new(key, AES.MODE_GCM, nonce=iv)
-
-            #cipher.update(jv['header'])
-
-            plaintext = cipher.decrypt_and_verify(ciphertext, tag)
-            print("Msg type: ", u8(plaintext[:1]))
-            print("Version number: ", u16(plaintext[1:3]))
-            print("Total size: ", u32(plaintext[3:7]))
-            print("Release msg size: ", u16(plaintext[7:9]))
-            print("Release msg: ", plaintext[9:480])
-        
-        lastChonk = out[-512:]
-        iv = lastChonk[:16]
-        tag = lastChonk[16:32]
-        ciphertext = lastChonk[32:]
-
-        cipher = AES.new(key, AES.MODE_GCM, nonce=iv)
-        plaintext = cipher.decrypt_and_verify(ciphertext, tag)
-
-        pt = unpad(plaintext, block_size=480, style='iso7816')
-        print("Msg type: ", u8(pt[:1]))
-        print("Version number: ", u16(pt[1:3]))
-        print("Total size: ", u32(pt[3:7]))
-        print("Release msg size: ", u16(pt[7:9]))
-        print("Release msg: ", pt[9:])
 
 def protect_firmware(infile, outfile, version, message):
 
@@ -202,6 +166,9 @@ def protect_body(data):
         # Add the frame to the body
         body += frame
 
+    # Putting all the data frames in the protected output thing
+    with open("protected_output.bin", "ab") as f:
+        f.write(body)
 
     # Return the entire protected firmware
     return body
