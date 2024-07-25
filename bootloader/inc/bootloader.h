@@ -44,13 +44,13 @@ typedef struct pltxt_start_frame {
     uint16_t    version_num;
     uint32_t    total_size;
     uint16_t    msg_size;
-    uint8_t     msg[469];
+    uint8_t     msg[471];
 } pltxt_start_frame;
 
 
 typedef struct pltxt_body_frame {
     uint8_t     type;
-    uint8_t     plaintext[477];
+    uint8_t     plaintext[479];
 } pltxt_body_frame;
 
 typedef struct generic_frame {
