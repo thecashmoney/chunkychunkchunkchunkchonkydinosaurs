@@ -20,15 +20,15 @@ NUM_FRAMES = 1
 FRAMES_SENT = 0
 
 
-# IV = b''
-# tag = b''
+IV = b''
+tag = b''
 
-# ctr = 0
+ctr = 0
 
-# for i in range(16):
-#     IV += p8(ctr, endian="little")
-#     tag += p8(ctr + 1, endian="little")
-#     ctr += 1
+for i in range(16):
+    IV += p8(ctr, endian="little")
+    tag += p8(ctr + 1, endian="little")
+    ctr += 1
 
 
 # WORKING
@@ -53,7 +53,7 @@ def send_IV_and_tag(ser, debug=False):
 
     # Wait for an OK from the bootloader.
     resp = ser.read(1)
-    #print("Resp: ", resp)
+    print("Resp: ", resp)
     if resp != RESP_OK:
         raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(resp)))
     
@@ -66,6 +66,7 @@ def send_IV_and_tag(ser, debug=False):
     gat = ser.read(16)
     print(f"Tag: {gat}")
 
+
 def send_ciphertext(ser, filepath, debug=False):
     f = open(filepath, "rb")
     data = f.read(512)
@@ -75,52 +76,19 @@ def send_ciphertext(ser, filepath, debug=False):
 
     # Wait for an OK from the bootloader.
     resp = ser.read(1)
-    #print("Resp: ", resp)
+    print("Resp: ", resp)
     if resp != RESP_OK:
         raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(resp)))
     
-    # TODO: Remove this debug statement
+    # TODO: Remove the ciphertext debug statements later
     ct = b''
     ct = ser.read(480)
-    print(f"CT: {ct}")
+    print("CT: ", ct)
     print("Length: ", len(ct))
-
-def calc_num_frames(file):
-    if len(file) % FRAME_SIZE == 0:
-        NUM_FRAMES = len(file) // FRAME_SIZE
-    else:
-        NUM_FRAMES = len(file) // FRAME_SIZE + 1
-
-def send_frame(ser, data, debug=False):
-    IV = data[0:16]
-    tag = data[16:32]
-    ciphertext = data[32:]
-
-    frame = IV + tag + ciphertext
-    ser.write(frame)  # Write the frame...
-
-    if debug:
-        print_hex(frame)
-
-    resp = ser.read(1)  # Wait for an OK from the bootloader
-
-    time.sleep(0.1)
-
-    if resp != RESP_OK:
-        raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(resp)))
-    else:
-        FRAMES_SENT +=1
-
-    if debug:
-        print("Resp: {}".format(ord(resp)))
-
 
 
 if __name__ == "__main__":
-    with open("tester", "rb") as f:
-        data = f.read()
-    calc_num_frames()
     wait_for_update()
-    while FRAMES_SENT != NUM_FRAMES:
-        send_frame(ser, data[FRAMES_SENT * 512: (FRAMES_SENT + 1) * 512])
+    send_IV_and_tag(ser)
+    send_ciphertext(ser, "tester.bin")
     ser.close()
