@@ -58,13 +58,13 @@ def send_IV_and_tag(ser, debug=False):
         raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(resp)))
     
     # TODO: Remove the IV & TAG debug statements later
-    '''vi = b''
+    vi = b''
     vi = ser.read(16)
     print("IV: ", vi)
 
     gat = b''
     gat = ser.read(16)
-    print(f"Tag: {gat}")'''
+    print(f"Tag: {gat}")
 
 def send_ciphertext(ser, filepath, debug=False):
     f = open(filepath, "rb")
@@ -80,10 +80,10 @@ def send_ciphertext(ser, filepath, debug=False):
         raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(resp)))
     
     # TODO: Remove this debug statement
-    '''ct = b''
+    ct = b''
     ct = ser.read(480)
     print(f"CT: {ct}")
-    print("Length: ", len(ct))'''
+    print("Length: ", len(ct))
 
 def calc_num_frames(file):
     if len(file) % FRAME_SIZE == 0:
