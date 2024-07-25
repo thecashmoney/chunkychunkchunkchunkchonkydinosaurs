@@ -156,15 +156,11 @@ void receive_ciphertext(uint8_t *ciphertext)
 */
 void read_frame() 
 {
-    // defining buffers to store the IV and the tag
-    uint8_t IV[16];
-    uint8_t tag[16];
+    // Create a generic frame struct
+    generic_frame frame;
 
-    // defining buffer to store the raw ciphertext (with padding)
-    uint8_t ciphertext[480];
-
-    // read the IV and tag and store them in the IV/tag buffers
-    receive_IV_tag(&IV, &tag); 
+    // read the IV and tag and store them in the start frame struct
+    receive_IV_tag(frame.IV, frame.tag); 
 
     // send back a null byte 
     uart_write(UART0, OK);
@@ -173,21 +169,20 @@ void read_frame()
     // TODO: Remove the testing for loops later
     for (int i=0; i<16; i++)
     {
-        uart_write(UART0, IV[i]);
+        uart_write(UART0, frame.IV[i]);
     }
     //uart_write(UART0, OK);
     
     for (int i=0; i<16; i++)
     {
-        uart_write(UART0, tag[i]);
+        uart_write(UART0, frame.tag[i]);
     }
 
-    receive_ciphertext(&ciphertext);
-    uart_write(UART0, OK);
-    // TODO: Remove the testing for loops later
+    receive_ciphertext(frame.ciphertext);
+
     for (int i=0; i<480; i++)
     {
-        uart_write(UART0, ciphertext[i]);
+        uart_write(UART0, frame.ciphertext[i]);
     }
 }
 

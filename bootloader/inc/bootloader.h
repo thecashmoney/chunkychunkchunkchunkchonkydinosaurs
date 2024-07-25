@@ -40,32 +40,26 @@
 
 
 typedef struct pltxt_start_frame {
+    uint16_t    frame_num;
     uint8_t     type;
     uint16_t    version_num;
     uint32_t    total_size;
     uint16_t    msg_size;
-    uint8_t     msg[471];
+    uint8_t     msg[469];
 } pltxt_start_frame;
 
 
-typedef struct start_frame {
-    uint8_t               IV[16];
-    uint8_t               tag[16];
-    pltxt_start_frame     ciphertxt[480];
-} start_frame_st;
-
-
 typedef struct pltxt_body_frame {
+    uint16_t    frame_num;
     uint8_t     type;
-    uint8_t     plaintext[479];
+    uint8_t     plaintext[477];
 } pltxt_body_frame;
 
-
-typedef struct body_frame {
+typedef struct generic_frame {
     uint8_t             IV[16];
     uint8_t             tag[16];
-    pltxt_body_frame    plaintext;
-} start_frame_st;
+    uint8_t             ciphertext[480];
+} generic_frame;
 
 long program_flash(void* page_addr, unsigned char * data, unsigned int data_len);
 
