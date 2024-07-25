@@ -41,34 +41,34 @@ def start_protect(size: int, version: int, message: str):
     Start message creation and encryption
     its just bytes that we put at the beginning of fw_protected
     
-    First 1 byte: type (0x01)
-    Next 2 bytes: version number
+    First 4 byte: type (0x04)
+    Next 4 bytes: version number
     Next 4 bytes: size (0x04)
-    Next 2 bytes: Release message size
-    Next 471 bytes: Release message
+    Next 4 bytes: Release message size
+    Next 464 bytes: Release message
 
     for last frame:
-    last 470 bytes: 
+    last 463 bytes: 
     """
 
     msg = bytearray(message.encode('utf-8'))
 
     metadata = []
     rmsize = len(msg)
-    sizes = p8(0, endian='little') + p16(version, endian='little') + p32(size, endian='little') + p16(rmsize, endian='little')
+    sizes = p32(0, endian='little') + p32(version, endian='little') + p32(size, endian='little') + p32(rmsize, endian='little')
     
     index = 0
 
     #-----------------------------------------WRITE MESSAGE INTO METADATA
     while index < len(msg):
-        if (len(msg) - index) < 471:
+        if (len(msg) - index) < 464:
             # Pad the data if there is less than 479 bytes left of plaintxt
-            plaintext = pad(sizes + plaintext, 480, style='iso7816')
-            metadata.append(plaintext)
+            msg = pad(sizes + msg, 480, style='iso7816')
+            metadata.append(msg)
         else:
             # Add 479 bytes of plaintext
-            metadata.append(sizes + msg[index:index + 471])
-        index += 471
+            metadata.append(sizes + msg[index:index + 464])
+        index += 464
     
     #----------------------ENCRYPTION----------------------------------
     with open("../secret_build_output.txt", "rb") as keyfile:
