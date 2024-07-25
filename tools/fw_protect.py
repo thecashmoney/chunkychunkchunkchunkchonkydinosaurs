@@ -89,6 +89,7 @@ def protect_firmware(infile, version, message):
 
     start_protect(len(firmware), version, message)
     protect_body(firmware)
+    protect_end()
     
 
 def protect_body(data):
@@ -148,6 +149,25 @@ def protect_body(data):
     # Return the entire protected firmware
     return
 
+def protect_end():
+    with open("../secret_build_output.txt", "rb") as keyfile:
+        key = keyfile.read(16)
+
+    #header = b"header"
+    data = pad(p8(2, endian='little'), 480, style='iso7816')
+    cipher = AES.new(key, AES.MODE_GCM)
+
+    #cipher.update(header)
+
+    #--------------------------------------------encrypt data
+    ciphertext, tag = cipher.encrypt_and_digest(data)
+    iv = cipher.nonce
+    
+    #--------------------------------------------Write ciphertext to protected_output
+    with open("protected_output.bin", "ab") as f:
+        f.write(iv + tag + ciphertext)
+
+    return
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Firmware Update Tool")
     parser.add_argument("--infile", help="Path to the firmware image to protect.", required=True)

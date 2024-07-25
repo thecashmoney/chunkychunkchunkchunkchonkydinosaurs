@@ -29,6 +29,7 @@ def main():
 
     size, index = unprotect_start(frames, key)
     unprotect_body(frames, key, index, size)
+    unprotect_end(frames, key)
 
 
 def unprotect_start(frames, key):#------------------------------------UNPROTECT START
@@ -153,6 +154,21 @@ def unprotect_body(frames, key, index, size):
     print("Length of firmare according to file:", size, "\nLength of firmware according to us", len(complete_firmware))
     
     return index
+
+def unprotect_end(frames, key):
+    chonk = frames[-1]
+    iv = chonk[:16]
+    tag = chonk[16:32]
+    ciphertext = chonk[32:]
+    
+    cipher = AES.new(key, AES.MODE_GCM, nonce=iv)
+
+    plaintext = u8(unpad(cipher.decrypt_and_verify(ciphertext, tag), 480, style="iso7816"))
+    if(plaintext == 2):
+        print("END MESSAGE REACHED")
+        print("Msg type: ", plaintext)
+    else:
+        print("Frame error")
 
 if __name__ == "__main__":
     main()
