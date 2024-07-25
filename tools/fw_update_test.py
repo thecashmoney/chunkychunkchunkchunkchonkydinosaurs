@@ -37,7 +37,6 @@ def wait_for_update():
         ctr += 1
         pass
 
-
 def send_IV_and_tag(ser, debug=False):
     # IV = metadata[0:16]
     # tag = metadata[16:32]
@@ -54,7 +53,7 @@ def send_IV_and_tag(ser, debug=False):
     if resp != RESP_OK:
         raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(resp)))
     
-    # TODO: Remove the vi & gat debug statements later
+    # TODO: Remove the IV & TAG debug statements later
     '''vi = b''
     vi = ser.read(16)
     print("IV: ", vi)
@@ -62,6 +61,21 @@ def send_IV_and_tag(ser, debug=False):
     gat = b''
     gat = ser.read(16)
     print(f"Tag: {gat}")'''
+
+def send_ciphertext(ser, filepath, debug=False):
+    f = open(filepath, "rb")
+    data = f.read(512)
+
+    ciphertext = data[32:]
+    ser.write(ciphertext)
+
+    # Wait for an OK from the bootloader.
+    resp = ser.read(1)
+    print("Resp: ", resp)
+    if resp != RESP_OK:
+        raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(resp)))
+    
+
 
 
 if __name__ == "__main__":

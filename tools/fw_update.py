@@ -35,30 +35,75 @@ RESP_OK = b"\x00"
 FRAME_SIZE = 256
 
 
-def send_metadata(ser, metadata, debug=False):
-    assert(len(metadata) == 4)
-    version = u16(metadata[:2], endian='little')
-    size = u16(metadata[2:], endian='little')
-    print(f"Version: {version}\nSize: {size} bytes\n")
+def wait_for_update():
+    ser.write(b"U")
+    print("Waiting for bootloader to enter update mode...")
+    ctr = 1
+    while ser.read(1).decode() != "U":
+        print(f"byte: {ctr}")
+        ctr += 1
+        pass
+
+def send_IV_and_tag(ser, debug=False):
+    IV = metadata[0:16]
+    tag = metadata[16:32]
 
     # Handshake for update
-    ser.write(b"U")
 
-    print("Waiting for bootloader to enter update mode...")
-    while ser.read(1).decode() != "U":
-        print("got a byte")
-        pass
+    ser.write(IV)
+    ser.write(tag)
+    print("Packaged IV and tag")
+
+    # Wait for an OK from the bootloader.
+    resp = ser.read(1)
+    print("Resp: ", resp)
+    if resp != RESP_OK:
+        raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(resp)))
+
+
+def send_ciphertext():
+    ciphertext = metadata[32:]
+    print("packaged ciphertext")
 
     # Send size and version to bootloader.
     if debug:
         print(metadata)
 
-    ser.write(metadata)
-
+    ser.write(IV)
+    ser.write(tag)
     # Wait for an OK from the bootloader.
     resp = ser.read(1)
     if resp != RESP_OK:
         raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(resp)))
+
+
+
+
+
+# def send_metadata(ser, metadata, debug=False):
+#     assert(len(metadata) == 4)
+#     version = u16(metadata[:2], endian='little')
+#     size = u16(metadata[2:], endian='little')
+#     print(f"Version: {version}\nSize: {size} bytes\n")
+
+#     # Handshake for update
+#     ser.write(b"U")
+
+#     print("Waiting for bootloader to enter update mode...")
+#     while ser.read(1).decode() != "U":
+#         print("got a byte")
+#         pass
+
+#     # Send size and version to bootloader.
+#     if debug:
+#         print(metadata)
+
+#     ser.write(metadata)
+
+#     # Wait for an OK from the bootloader.
+#     resp = ser.read(1)
+#     if resp != RESP_OK:
+#         raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(resp)))
 
 
 def send_frame(ser, frame, debug=False):
