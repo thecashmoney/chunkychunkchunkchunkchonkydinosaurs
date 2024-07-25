@@ -22,56 +22,46 @@ def main():
             return
         for i in range(0, len(out) // 512):
             frames.append(out[i * 512: (i + 1) * 512])
-        print(len(frames))
+        print("Received ", len(frames), " frames.")
 
     with open("../secret_build_output.txt", "rb") as keyfile:
         key = keyfile.read(16)
 
     size, index = unprotect_start(frames, key)
-    unprotect_body(frames, key, index, size)
-    unprotect_end(frames, key)
+    index = unprotect_body(frames, key, index, size)
+    unprotect_end(frames, key, index)
 
 
-def unprotect_start(frames, key):#------------------------------------UNPROTECT START
-    #--------------------------------------------GET FIRST CHONK
-    firstChonk = frames[0]
-    iv = firstChonk[:16]
-    tag = firstChonk[16:32]
-    ciphertext = firstChonk[32:]
 
+
+
+
+
+
+def printStart_noPad(i:bytes, key:bytes, aad:int):
+    # Same for all the frames
+    iv = i[:16]
+    tag = i[16:32]
+    ciphertext = i[32:]
     cipher = AES.new(key, AES.MODE_GCM, nonce=iv)
-    plaintext = cipher.decrypt_and_verify(ciphertext, tag)
-    
-    rmsize = u16(plaintext[7:9])
-    numFrames = (rmsize // 470) + 1
-
-    #------------------------------------------GET MIDDLE CHONKS
-    for x in range(numFrames-1):
-        i = frames[x]
-        # Same for all the frames
-        iv = i[:16]
-        tag = i[16:32]
-        ciphertext = i[32:]
-        cipher = AES.new(key, AES.MODE_GCM, nonce=iv)
-
-        # Getting plaintext with data and metadata
-        plaintext = cipher.decrypt_and_verify(ciphertext, tag)
-
-        print("Msg type: ", u8(plaintext[:1]))
-        print("Version number: ", u16(plaintext[1:3]))
-        print("Total size: ", u32(plaintext[3:7]))
-        print("Release msg size: ", u16(plaintext[7:9]))
-        print("Release msg: ", plaintext[9:480])
-
-    #-----------------------------------------------GET LAST CHONK
-    lastChonk = frames[numFrames-1]
-    iv = lastChonk[:16]
-    tag = lastChonk[16:32]
-    ciphertext = lastChonk[32:]
-
-    cipher = AES.new(key, AES.MODE_GCM, nonce=iv)
+    cipher.update(p16(aad))
+    # Getting plaintext with data and metadata
     plaintext = cipher.decrypt_and_verify(ciphertext, tag)
 
+    print("Msg type: ", u8(plaintext[:1]))
+    print("Version number: ", u16(plaintext[1:3]))
+    print("Total size: ", u32(plaintext[3:7]))
+    print("Release msg size: ", u16(plaintext[7:9]))
+    print("Release msg: ", plaintext[9:480])
+
+def printStart_Pad(i:bytes, key:bytes, aad:int):
+    iv = i[:16]
+    tag = i[16:32]
+    ciphertext = i[32:]
+
+    cipher = AES.new(key, AES.MODE_GCM, nonce=iv)
+    cipher.update(p16(aad))
+    plaintext = cipher.decrypt_and_verify(ciphertext, tag)
     pt = unpad(plaintext, block_size=480, style='iso7816')
 
 
@@ -81,7 +71,43 @@ def unprotect_start(frames, key):#------------------------------------UNPROTECT 
     print("Release msg size: ", u16(pt[7:9]))
     print("Release msg: ", pt[9:])
 
-    return((u32(pt[3:7]), numFrames))
+
+
+
+
+
+def unprotect_start(frames, key):#------------------------------------UNPROTECT START
+    #--------------------------------------------GET FIRST CHONK TO GET LENGTH
+    firstChonk = frames[0]
+    iv = firstChonk[:16]
+    tag = firstChonk[16:32]
+    ciphertext = firstChonk[32:]
+
+    cipher = AES.new(key, AES.MODE_GCM, nonce=iv)
+    cipher.update(p16(0))
+    plaintext = cipher.decrypt_and_verify(ciphertext, tag)
+    padLastChonk = True
+    
+    rmsize = u16(plaintext[7:9])
+    if rmsize % 471 != 0:
+        numFrames = (rmsize // 471) + 1
+    else:
+        numFrames = (rmsize // 471)
+        padLastChonk = False
+
+    #------------------------------------------GET MIDDLE CHONKS
+    for x in range(numFrames-1):
+        i = frames[x]
+        printStart_noPad(i, key, x)
+
+    #-----------------------------------------------GET LAST CHONK
+    if(padLastChonk):
+        printStart_Pad(frames[numFrames-1], key, numFrames-1)
+
+    else:
+        printStart_noPad(frames[numFrames-1], key, numFrames-1)
+
+    return((u32(plaintext[3:7]), numFrames))
     
     
 
@@ -95,6 +121,7 @@ def unprotect_body(frames, key, index, size):
         tag = current[16:32]
         ciphertext = current[32:]
         cipher = AES.new(key, AES.MODE_GCM, nonce=iv)
+        cipher.update(p16(index))
         
         try:
             # Getting plaintext with data and metadata
@@ -129,6 +156,7 @@ def unprotect_body(frames, key, index, size):
     tag = current[16:32]
     ciphertext = current[32:]
     cipher = AES.new(key, AES.MODE_GCM, nonce=iv)
+    cipher.update(p16(index))
     
     try:
         # Getting plaintext with data and metadata
@@ -155,15 +183,17 @@ def unprotect_body(frames, key, index, size):
     
     return index
 
-def unprotect_end(frames, key):
-    chonk = frames[-1]
+def unprotect_end(frames, key, index):
+    chonk = frames[index]
     iv = chonk[:16]
     tag = chonk[16:32]
     ciphertext = chonk[32:]
     
     cipher = AES.new(key, AES.MODE_GCM, nonce=iv)
+    cipher.update(p16(index))
 
-    plaintext = u8(unpad(cipher.decrypt_and_verify(ciphertext, tag), 480, style="iso7816"))
+    plaintext = cipher.decrypt_and_verify(ciphertext, tag)
+    plaintext = u8(unpad(plaintext, 480, style="iso7816"))
     if(plaintext == 2):
         print("END MESSAGE REACHED")
         print("Msg type: ", plaintext)
@@ -172,3 +202,14 @@ def unprotect_end(frames, key):
 
 if __name__ == "__main__":
     main()
+
+
+
+
+
+
+
+
+
+
+
