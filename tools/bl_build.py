@@ -80,13 +80,13 @@ def make_bootloader() -> bool:
     # --------------------- DO NOT TOUCH THIS CODE ---------------------
     # Build the bootloader from source.
 
-    '''os.chdir(BOOTLOADER_DIR)
+    os.chdir(BOOTLOADER_DIR)
 
     subprocess.call("make clean", shell=True)
     status = subprocess.call("make")
 
     # Return True if make returned 0, otherwise return False.
-    return status == 0'''
+    return status == 0
 
     # --------------------- END OF UNTOUCHABLE CODE ---------------------
 
