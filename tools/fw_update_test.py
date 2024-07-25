@@ -15,12 +15,12 @@ ser = serial.Serial("/dev/ttyACM0", 115200)
 
 RESP_OK = b"\x00"
 FRAME_SIZE = 512
-OFFSET = 0
+#OFFSET = 0
 NUM_FRAMES = 1
 FRAMES_SENT = 0
 
 
-IV = b''
+'''IV = b''
 tag = b''
 
 ctr = 0
@@ -28,7 +28,7 @@ ctr = 0
 for i in range(16):
     IV += p8(ctr, endian="little")
     tag += p8(ctr + 1, endian="little")
-    ctr += 1
+    ctr += 1'''
 
 
 # WORKING
@@ -93,6 +93,8 @@ def calc_num_frames(file):
         NUM_FRAMES = len(file) // FRAME_SIZE + 1
 
 def send_frame(ser, data, debug=False):
+    global FRAMES_SENT
+
     IV = data[0:16]
     tag = data[16:32]
     ciphertext = data[32:]
@@ -110,14 +112,45 @@ def send_frame(ser, data, debug=False):
     if resp != RESP_OK:
         raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(resp)))
     else:
-        FRAMES_SENT +=1
+        FRAMES_SENT += 1
 
     if debug:
         print("Resp: {}".format(ord(resp)))
 
+    # TODO: Remove the IV, TAG, & CIPHERTEXT debug statements later
+    vi = b''
+    vi = ser.read(16)
+    print("IV: ", vi)
+
+    gat = b''
+    gat = ser.read(16)
+    print(f"Tag: {gat}")
+
+    ct = b''
+    ct = ser.read(480)
+    print("CT: ", ct)
+    print("Length: ", len(ct))
+
+
+def main():
+    # declare the variables as global
+    '''global FRAME_SIZE
+    global NUM_FRAMES
+    global FRAMES_SENT
+    print("FRAMES SENT: ", FRAMES_SENT)'''
+
+    #send_IV_and_tag(ser)
+    #send_ciphertext(ser, "tester.bin")
+    calc_num_frames("tester.bin")
+    f = open("tester.bin", "rb")
+    data = f.read()
+    wait_for_update()
+
+    numFramesSent = FRAMES_SENT
+    while FRAMES_SENT != NUM_FRAMES:
+        send_frame(ser, data[(numFramesSent * 512): (numFramesSent + 1) * 512])
+    ser.close()
+
 
 if __name__ == "__main__":
-    wait_for_update()
-    send_IV_and_tag(ser)
-    send_ciphertext(ser, "tester.bin")
-    ser.close()
+    main()

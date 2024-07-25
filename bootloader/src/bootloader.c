@@ -166,6 +166,13 @@ void read_frame()
     uart_write(UART0, OK);
 
 
+    // read the ciphertext and store it in the generic_frame struct
+    receive_ciphertext(frame.ciphertext);
+
+    // send back a null byte 
+    uart_write(UART0, OK);
+
+
     // TODO: Remove the testing for loops later
     for (int i=0; i<16; i++)
     {
@@ -175,13 +182,6 @@ void read_frame()
     {
         uart_write(UART0, frame.tag[i]);
     }
-
-    // read the ciphertext and store it in the generic_frame struct
-    receive_ciphertext(frame.ciphertext);
-
-    // send back a null byte 
-    uart_write(UART0, OK);
-
     for (int i=0; i<480; i++)
     {
         uart_write(UART0, frame.ciphertext[i]);
