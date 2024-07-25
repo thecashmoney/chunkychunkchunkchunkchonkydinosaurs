@@ -86,6 +86,35 @@ def send_ciphertext(ser, filepath, debug=False):
     print("CT: ", ct)
     print("Length: ", len(ct))
 
+def calc_num_frames(file):
+    if len(file) % FRAME_SIZE == 0:
+        NUM_FRAMES = len(file) // FRAME_SIZE
+    else:
+        NUM_FRAMES = len(file) // FRAME_SIZE + 1
+
+def send_frame(ser, data, debug=False):
+    IV = data[0:16]
+    tag = data[16:32]
+    ciphertext = data[32:]
+
+    frame = IV + tag + ciphertext
+    ser.write(frame)  # Write the frame...
+
+    if debug:
+        print_hex(frame)
+
+    resp = ser.read(1)  # Wait for an OK from the bootloader
+
+    time.sleep(0.1)
+
+    if resp != RESP_OK:
+        raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(resp)))
+    else:
+        FRAMES_SENT +=1
+
+    if debug:
+        print("Resp: {}".format(ord(resp)))
+
 
 if __name__ == "__main__":
     wait_for_update()
