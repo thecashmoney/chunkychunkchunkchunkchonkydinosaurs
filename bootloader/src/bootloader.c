@@ -186,6 +186,22 @@ void read_frame()
     {
         uart_write(UART0, frame.ciphertext[i]);
     }
+    // End of testing for loops
+
+
+}
+
+
+// Unpads the plaintext and stores it in plaintext
+int unpad(uint8_t* plaintext) 
+{
+    int index;
+    for(int i = 479; i >= 0; i--) 
+    {
+        if(plaintext[i] == 0x80) 
+            index = i;
+    }
+    return index;
 }
 
 
@@ -196,6 +212,7 @@ void load_firmware(void) {
 
     /* -------------------------------- TESTING CODE -------------------------------- */
 
+    // Read the first start frame to get the total firmware size
     read_frame();
 
     /* -------------------------------- END OF TEST CODE -------------------------------- */
