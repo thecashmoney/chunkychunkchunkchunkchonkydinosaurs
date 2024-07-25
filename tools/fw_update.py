@@ -32,53 +32,44 @@ from util import *
 ser = serial.Serial("/dev/ttyACM0", 115200)
 
 RESP_OK = b"\x00"
-FRAME_SIZE = 256
-
+FRAME_SIZE = 512
 
 def wait_for_update():
     ser.write(b"U")
     print("Waiting for bootloader to enter update mode...")
-    ctr = 1
     while ser.read(1).decode() != "U":
-        print(f"byte: {ctr}")
-        ctr += 1
         pass
 
-def send_IV_and_tag(ser, debug=False):
-    IV = metadata[0:16]
-    tag = metadata[16:32]
+def send_IV_and_tag(ser, filepath, debug=False):
+    #open the protected_output.bin file and read its contents to get and send encrypted data
+    f = open(filepath, "rb")
+    data = f.read(FRAME_SIZE)
 
-    # Handshake for update
+    #IV is first 16 bytes, Tag is next 16 bytes
+    IV = data[0:16]
+    tag = data[16:32]
 
+    #Write IV and tag to serial
     ser.write(IV)
     ser.write(tag)
-    print("Packaged IV and tag")
 
-    # Wait for an OK from the bootloader.
-    resp = ser.read(1)
-    print("Resp: ", resp)
-    if resp != RESP_OK:
-        raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(resp)))
-
-
-def send_ciphertext():
-    ciphertext = metadata[32:]
-    print("packaged ciphertext")
-
-    # Send size and version to bootloader.
-    if debug:
-        print(metadata)
-
-    ser.write(IV)
-    ser.write(tag)
     # Wait for an OK from the bootloader.
     resp = ser.read(1)
     if resp != RESP_OK:
         raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(resp)))
 
+def send_ciphertext(ser, filepath, debug=False):
+    f = open(filepath, "rb")
+    data = f.read(512)
 
+    ciphertext = data[32:]
+    ser.write(ciphertext)
 
-
+    # Wait for an OK from the bootloader.
+    resp = ser.read(1)
+    #print("Resp: ", resp)
+    if resp != RESP_OK:
+        raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(resp)))
 
 # def send_metadata(ser, metadata, debug=False):
 #     assert(len(metadata) == 4)
