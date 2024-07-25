@@ -20,10 +20,9 @@ def main():
         if len(out) % 512 != 0:
             print("Error with firmware file")
             return
-        for i in range(0, len(out) // 512, 512):
+        for i in range(0, len(out) // 512):
             frames.append(out[i * 512: (i + 1) * 512])
-        
-        print(frames)
+        print(len(frames))
 
     with open("../secret_build_output.txt", "rb") as keyfile:
         key = keyfile.read(16)
@@ -41,16 +40,13 @@ def unprotect_start(frames, key):#------------------------------------UNPROTECT 
 
     cipher = AES.new(key, AES.MODE_GCM, nonce=iv)
     plaintext = cipher.decrypt_and_verify(ciphertext, tag)
-
-    pt = unpad(plaintext, block_size=480, style='iso7816')
     
-    rmsize = u16(pt[7:9])
+    rmsize = u16(plaintext[7:9])
     numFrames = (rmsize // 470) + 1
 
     #------------------------------------------GET MIDDLE CHONKS
     for x in range(numFrames-1):
         i = frames[x]
-
         # Same for all the frames
         iv = i[:16]
         tag = i[16:32]
@@ -60,7 +56,7 @@ def unprotect_start(frames, key):#------------------------------------UNPROTECT 
         # Getting plaintext with data and metadata
         plaintext = cipher.decrypt_and_verify(ciphertext, tag)
 
-        print("Msg type: ", u8(plaintext[0]))
+        print("Msg type: ", u8(plaintext[:1]))
         print("Version number: ", u16(plaintext[1:3]))
         print("Total size: ", u32(plaintext[3:7]))
         print("Release msg size: ", u16(plaintext[7:9]))
@@ -99,10 +95,14 @@ def unprotect_body(frames, key, index, size):
         ciphertext = current[32:]
         cipher = AES.new(key, AES.MODE_GCM, nonce=iv)
         
-        # Getting plaintext with data and metadata
-        plaintext = cipher.decrypt_and_verify(ciphertext, tag)
+        try:
+            # Getting plaintext with data and metadata
+            plaintext = cipher.decrypt_and_verify(ciphertext, tag)
+        except (ValueError, KeyError) as e:
+            print(e)
+            return
 
-        mType = u8(plaintext[0])
+        mType = u8(plaintext[:1])
         
         if mType != 1:
             print("Message type error. Supposed to be 1 but is", mType)
@@ -129,10 +129,14 @@ def unprotect_body(frames, key, index, size):
     ciphertext = current[32:]
     cipher = AES.new(key, AES.MODE_GCM, nonce=iv)
     
-    # Getting plaintext with data and metadata
-    plaintext = unpad(cipher.decrypt_and_verify(ciphertext, tag), 480, style='iso7816')
+    try:
+        # Getting plaintext with data and metadata
+        plaintext = unpad(cipher.decrypt_and_verify(ciphertext, tag), 480, style="iso7816")
+    except (ValueError, KeyError) as e:
+        print(e)
+        return
 
-    mType = u8(plaintext[0])
+    mType = u8(plaintext[:1])
     
     if mType != 1:
         print("Message type error. Supposed to be 1 but is", mType)

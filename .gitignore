@@ -64,3 +64,7 @@ secret_build_output.txt
 tools/protected_output.bin
 
 secret_build_output.txt
+
+tools/firmware.bin
+tools/input.txt
+tools/protected_output.bin

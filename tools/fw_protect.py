@@ -78,43 +78,18 @@ def start_protect(size: int, version: int, message: str):
             iv, tag, ciphertext = i
             f.write(iv + tag + ciphertext)
 
+    return
 
-def protect_firmware(infile, outfile, version, message):
+
+def protect_firmware(infile, version, message):
 
     # Load firmware binary from infile
     with open(infile, "rb") as fp:
         firmware = fp.read()
 
-
-    # Append null-terminated message to end of firmware
-    firmmware_and_message = firmware + message.encode() + b"\00"
-
-    # Pack version and size into two little-endian shorts
-    metadata = p16(version, endian='little') + p16(len(firmware), endian='little')  
-
-    # Append firmware and message to metadata
-    firmware_blob = metadata + firmware_and_message
-
-
-
-    #----------------------ENCRYPTION----------------------------------
-
-    #with open(keyfile, "rb") as key:
-    key = b""
-
-
-    cipher = AES.new(key, 11)
-
-    nonce = cipher.nonce
-
-    ciphertext, tag = cipher.encrypt_and_digest(firmware_blob)
-
-    #--------------------------------------------------------------
-
+    start_protect(len(firmware), version, message)
+    protect_body(firmware)
     
-    # Write firmware blob to outfile
-    with open(outfile, "wb+") as outfile:
-        outfile.write(firmware_blob)
 
 def protect_body(data):
     """
@@ -141,7 +116,7 @@ def protect_body(data):
         ### Creating plaintext
         # Adding frame type code
         plaintext = bytearray(0)
-        plaintext += b'\x02'
+        plaintext += b'\x01'
         # Adding firmware plaintext
         if len(data) - index < (480 - len(plaintext)):
             # Pad the data if there is less than 479 bytes left of plaintxt
@@ -171,22 +146,15 @@ def protect_body(data):
         f.write(body)
 
     # Return the entire protected firmware
-    return body
+    return
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Firmware Update Tool")
-    parser.add_argument("--size", help="Total size of all data chunks (total firmware size)", required=True)
+    parser.add_argument("--infile", help="Path to the firmware image to protect.", required=True)
+    # parser.add_argument("--outfile", help="Filename for the output firmware.", required=True)
     parser.add_argument("--version", help="Version number of this firmware.", required=True)
     parser.add_argument("--message", help="Release message for this firmware.", required=True)
     args = parser.parse_args()
 
-    start_protect(size=int(args.size), version=int(args.version), message=args.message)
-
-    # parser = argparse.ArgumentParser(description="Firmware Update Tool")
-    # parser.add_argument("--infile", help="Path to the firmware image to protect.", required=True)
-    # parser.add_argument("--outfile", help="Filename for the output firmware.", required=True)
-    # parser.add_argument("--version", help="Version number of this firmware.", required=True)
-    # parser.add_argument("--message", help="Release message for this firmware.", required=True)
-    # args = parser.parse_args()
-
+    protect_firmware(infile=args.infile, version=int(args.version), message=args.message)
     # protect_firmware(infile=args.infile, outfile=args.outfile, version=int(args.version), message=args.message)
