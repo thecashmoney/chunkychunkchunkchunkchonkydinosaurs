@@ -152,48 +152,59 @@ def protect_firmware(infile, outfile, version, message):
     with open(outfile, "wb+") as outfile:
         outfile.write(firmware_blob)
 
-def protect_32_bytes(data):
+def protect_body(data):
     """
     Protects 32 bytes of data by encrypting it with AES-GCM using a key and AAD from a file.
 
     Returns: a frame containing the frame type, IV, encrypted data, tag, and padding
     """
 
+    # This is to hold all the frames
+    body = bytearray(0)
+
     with open("../secret_build_output.txt", "rb") as keyfile:
         key = keyfile.read(16)
-        aad = keyfile.read(16)
 
-    # If the data is empty, return an empty byte array
-    if data is None:
-        return bytearray(0)
-    # Pad the data to be a multiple of 16 byets
-    elif data % 32 != 0:
-        data = pad(data, 16)
+    index = 0
+    while index < len(data):
+        # Create the frame buffer
+        frame = bytearray(512)
 
-    # Create the frame buffer
-    frame = bytearray(len(data) + 1 + 16 + 32 + 16)
-    byte_ind = 0
-    frame[byte_ind] = 0x01
-    byte_ind += 1
+        # Create the IV / nonce
+        iv = get_random_bytes(16)
+        frame[0:16] = iv
 
-    # Create the IV / nonce
-    iv = get_random_bytes(16)
-    frame[byte_ind:byte_ind+16] = iv
-    byte_ind += 16
+        ### Creating plaintext
+        # Adding frame type code
+        plaintext = bytearray(0)
+        plaintext += b'\x02'
+        # Adding firmware plaintext
+        if len(data) - index < (480 - len(plaintext)):
+            # Pad the data if there is less than 479 bytes left of plaintxt
+            plaintext += data[index:]
+            plaintext = pad(plaintext, 480, style='iso7816')
+        else:
+            # Add 479 bytes of plaintext
+            plaintext += data[index:index + 479]
 
-    # Encrypt the data
-    cipher = AES.new(key, AES.MODE_GCM, nonce=iv, mac_len=16)
-    cipher.add(aad)
-    ciphertext, tag = cipher.encrypt_and_digest(data)
-    frame[byte_ind:byte_ind+32] = ciphertext
-    byte_ind += 32
-    frame[byte_ind:byte_ind+16] = tag
+        index += 479
 
-    # Padding the rest of the frame to a multiple of 16
-    frame = pad(frame, 16)
+        # Encrypt the data
+        cipher = AES.new(key, AES.MODE_GCM, nonce=iv, mac_len=16)
+        ciphertext, tag = cipher.encrypt_and_digest(plaintext)
 
-    # Return the key and the encrypted data
-    return frame
+        # Add the tag to the frame
+        frame[16:32] = tag
+
+        # Add the ciphertext to the frame
+        frame[32:] = ciphertext
+
+        # Add the frame to the body
+        body += frame
+
+
+    # Return the entire protected firmware
+    return body
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Firmware Update Tool")
