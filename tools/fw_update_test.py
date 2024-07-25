@@ -49,7 +49,7 @@ def send_IV_and_tag(ser, debug=False):
 
     # Wait for an OK from the bootloader.
     resp = ser.read(1)
-    print("Resp: ", resp)
+    #print("Resp: ", resp)
     if resp != RESP_OK:
         raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(resp)))
     
@@ -71,14 +71,20 @@ def send_ciphertext(ser, filepath, debug=False):
 
     # Wait for an OK from the bootloader.
     resp = ser.read(1)
-    print("Resp: ", resp)
+    #print("Resp: ", resp)
     if resp != RESP_OK:
         raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(resp)))
     
+    # TODO: Remove this debug statement
+    '''ct = b''
+    ct = ser.read(480)
+    print(f"CT: {ct}")
+    print("Length: ", len(ct))'''
 
 
 
 if __name__ == "__main__":
     wait_for_update()
     send_IV_and_tag(ser)
+    send_ciphertext(ser, "tester.bin")
     ser.close()
