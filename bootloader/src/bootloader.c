@@ -136,13 +136,13 @@ void receive_IV_tag(uint8_t *IV, uint8_t *tag)
     }
 }
 
-// Reads in the ciphertext from fw_update.py
+// Reads in the IV and the tag from fw_update.py
 void receive_ciphertext(uint8_t *ciphertext)
 {
     int read;
     uint32_t rcv;
 
-    // read in the ciphertext
+    // Reads the ciphertext
     for (int i=0; i<480; i++)
     {
         rcv = uart_read(UART0, BLOCKING, &read);
@@ -156,41 +156,34 @@ void receive_ciphertext(uint8_t *ciphertext)
 */
 void read_frame() 
 {
-    // defining buffers to store the IV and the tag
-    uint8_t IV[16];
-    uint8_t tag[16];
-    
-    // defining buffer to store the ciphertext
-    uint8_t ciphertext[480];
+    // Create a generic frame struct
+    generic_frame frame;
 
-    // read the IV and tag and store them in the IV/tag buffers
-    receive_IV_tag(&IV, &tag); 
+    // read the IV and tag and store them in the start frame struct
+    receive_IV_tag(frame.IV, frame.tag); 
+
     // send back a null byte 
     uart_write(UART0, OK);
-
-    // read the ciphertext and store it in the ciphertext buffer
-    receive_ciphertext(&ciphertext);
-    // send back a null byte 
-    uart_write(UART0, OK);
-
 
 
     // TODO: Remove the testing for loops later
-    /*for (int i=0; i<16; i++)  // test IV
+    for (int i=0; i<16; i++)
     {
-        uart_write(UART0, IV[i]);
+        uart_write(UART0, frame.IV[i]);
     }
     //uart_write(UART0, OK);
     
-    for (int i=0; i<16; i++)  // test tag
+    for (int i=0; i<16; i++)
     {
-        uart_write(UART0, tag[i]);
+        uart_write(UART0, frame.tag[i]);
     }
 
-    for (int i=0; i<480; i++)  // test ciphertext
+    receive_ciphertext(frame.ciphertext);
+
+    for (int i=0; i<480; i++)
     {
-        uart_write(UART0, ciphertext[i]);
-    }*/
+        uart_write(UART0, frame.ciphertext[i]);
+    }
 }
 
 

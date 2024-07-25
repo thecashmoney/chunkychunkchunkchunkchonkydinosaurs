@@ -38,13 +38,26 @@
 #define FW_LOADED 0
 #define FW_ERROR 1
 
-typedef struct fw_meta_s {
-    uint16_t    ver;                // Version of current fw being loaded
-    uint16_t    min_ver;            // Miniumum fw version (not updated when debug fw loaded) 
-    uint16_t    chunks;             // Length of fw in 1kb chunks
-    uint16_t    msgLen;             // Length of fw message in bytes
-    uint8_t     msg[MAX_MSG_LEN];   // fw release message
-} fw_meta_st;
+
+typedef struct pltxt_start_frame {
+    uint8_t     type;
+    uint16_t    version_num;
+    uint32_t    total_size;
+    uint16_t    msg_size;
+    uint8_t     msg[471];
+} pltxt_start_frame;
+
+
+typedef struct pltxt_body_frame {
+    uint8_t     type;
+    uint8_t     plaintext[479];
+} pltxt_body_frame;
+
+typedef struct generic_frame {
+    uint8_t             IV[16];
+    uint8_t             tag[16];
+    uint8_t             ciphertext[480];
+} generic_frame;
 
 long program_flash(void* page_addr, unsigned char * data, unsigned int data_len);
 
