@@ -2,6 +2,7 @@
 // Approved for public release. Distribution unlimited 23-02181-25.
 
 #include "bootloader.h"
+#include "../lib/wolfssl/wolfssl/wolfcrypt/error-crypt.h"
 
 // Hardware Imports
 #include "inc/hw_memmap.h"    // Peripheral Base Addresses
@@ -157,36 +158,29 @@ void receive_ciphertext(uint8_t *ciphertext)
 */
 void read_frame(generic_frame *frame) 
 {
-    // Create a generic frame struct
-    generic_frame frame;
-
     // read the IV and tag and store them in the generic_frame struct
-    receive_IV_tag(frame.IV, frame.tag); 
-
-    // send back a null byte 
-    uart_write(UART0, OK);
-
+    receive_IV_tag(frame->IV, frame->tag); 
 
     // read the ciphertext and store it in the generic_frame struct
-    receive_ciphertext(frame.ciphertext);
+    receive_ciphertext(frame->ciphertext);
 
     // send back a null byte 
-    uart_write(UART0, OK);
+    return OK;
 
 
-    // TODO: Remove the testing for loops later
-    for (int i=0; i<16; i++)
-    {
-        uart_write(UART0, frame.IV[i]);
-    }    
-    for (int i=0; i<16; i++)
-    {
-        uart_write(UART0, frame.tag[i]);
-    }
-    for (int i=0; i<480; i++)
-    {
-        uart_write(UART0, frame.ciphertext[i]);
-    }
+    // // TODO: Remove the testing for loops later
+    // for (int i=0; i<16; i++)
+    // {
+    //     uart_write(UART0, frame->IV[i]);
+    // }    
+    // for (int i=0; i<16; i++)
+    // {
+    //     uart_write(UART0, frame->tag[i]);
+    // }
+    // for (int i=0; i<480; i++)
+    // {
+    //     uart_write(UART0, frame->ciphertext[i]);
+    // }
 }
 
 
