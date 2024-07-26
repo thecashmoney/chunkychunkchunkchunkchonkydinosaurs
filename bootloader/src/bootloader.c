@@ -3,6 +3,7 @@
 
 #include "bootloader.h"
 #include "../lib/wolfssl/wolfssl/wolfcrypt/error-crypt.h"
+#include "../inc/secrets.h"
 
 // Hardware Imports
 #include "inc/hw_memmap.h"    // Peripheral Base Addresses
@@ -242,6 +243,23 @@ void load_firmware(void) {
 
     if (msg_size > FRAME_MSG_LEN) {
         // Iterate through start frames
+        uint32_t num_frames = msg_size % FRAME_MSG_LEN == 0 ? (uint_fast32_t) (msg_size / FRAME_MSG_LEN): (uint32_t) (msg_size / FRAME_MSG_LEN) + 1;
+        for (uint32_t i = 1; i < num_frames; i++) {
+            // Read in the next frame
+            uart_write(UART0, read_frame(frame_enc_ptr));
+
+            // Decrypt the frame
+            decrypt(frame_enc_ptr, i, frame_dec_ptr->plaintext);
+
+            // If the frame is not a body frame, there is an error
+            if (frame_dec_ptr->type != 0) {
+                uart_write(UART0, ERROR);
+                return;
+            }
+
+            // Write the decrypted frame to the flash
+            program_flash((void *) (FW_BASE + (i - 1) * FRAME_BODY_LEN), frame_dec_body->plaintext, FRAME_BODY_LEN);
+        }
         return;
     } else if (msg_size == FRAME_MSG_LEN) {
         // Print out single message
@@ -439,7 +457,7 @@ int decrypt(generic_frame *frame, uint16_t frame_num, uint8_t *plaintext) {
     // Create a new AES context
     Aes aes;
 
-    wc_AesSetKey(&aes, frame->IV, 16, frame->IV, AES_DECRYPTION);
+    wc_AesGcmSetKey(&aes, AESKEY, 16); // Set the key
 
     uint8_t authIn[2] = {frame_num >> 8, frame_num & 0xFF};
 
