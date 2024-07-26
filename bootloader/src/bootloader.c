@@ -200,6 +200,7 @@ void load_firmware(void) {
     // References to frame_decrypted, but can be read as if they were frame_dec_body / frame_dec_start / frame_dec_end
     pltxt_body_frame *frame_dec_body = (pltxt_body_frame *) frame_dec_ptr;
     pltxt_start_frame *frame_dec_start = (pltxt_start_frame *) frame_dec_ptr;
+    pltxt_end_frame *frame_dec_end = (pltxt_end_frame *) frame_dec_ptr;
 
     uart_write(UART0, read_frame(frame_enc_ptr));
 
@@ -223,7 +224,7 @@ void load_firmware(void) {
     if (old_version == 0xFFFF) {
         // Version not set
         old_version = version;
-        old_size = size;
+        old_size = fw_size;
     } else if (version < old_version) {
         // Attempted rollback
         uart_write(UART0, ERROR);
@@ -232,7 +233,7 @@ void load_firmware(void) {
     } else {
         // Update version
         old_version = version;
-        old_size = size;
+        old_size = fw_size;
     }
 
     /* -------------------------------- This code if for the next start frames -------------------------------- */
