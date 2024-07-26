@@ -40,12 +40,6 @@ int decrypt(generic_frame *frame, uint16_t frame_num, uint8_t *plaintext);
 #define FLASH_PAGESIZE 1024
 #define FLASH_WRITESIZE 4
 
-// Frame constants
-#define IV_LEN 16
-#define MAC_LEN 16
-#define FRAME_MSG_LEN 464
-#define FRAME_BODY_LEN 476
-
 // Protocol Constants
 #define OK ((unsigned char)0x00)
 #define ERROR ((unsigned char)0x01)
@@ -196,14 +190,14 @@ uint32_t read_frame(generic_frame *frame)
  */
 void load_firmware(void) {
 
-    /* -------------------------------- TESTING CODE -------------------------------- */
+    /* -------------------------------- This code if for the frist start frame -------------------------------- */
     // Actual variable for reading encrypted frames
     generic_frame frame_encrypted;
     generic_frame *frame_enc_ptr = &frame_encrypted;
     // Actual variable for storing decrypting frames
     generic_decrypted_frame frame_decrypted;
     generic_decrypted_frame *frame_dec_ptr = &frame_decrypted;
-    // References to frame_decrypted, but can be read as if they were frame_dec_body / frame_dec_start
+    // References to frame_decrypted, but can be read as if they were frame_dec_body / frame_dec_start / frame_dec_end
     pltxt_body_frame *frame_dec_body = (pltxt_body_frame *) frame_dec_ptr;
     pltxt_start_frame *frame_dec_start = (pltxt_start_frame *) frame_dec_ptr;
 
@@ -220,7 +214,7 @@ void load_firmware(void) {
 
     // Saving the metadata
     uint32_t version = frame_dec_start->version_num;
-    uint32_t size = frame_dec_start->total_size;
+    uint32_t fw_size = frame_dec_start->total_size;
     uint32_t msg_size = frame_dec_start->msg_size;
 
     // Making sure the old version isn't smaller than the current version
@@ -240,6 +234,8 @@ void load_firmware(void) {
         old_version = version;
         old_size = size;
     }
+
+    /* -------------------------------- This code if for the next start frames -------------------------------- */
 
     if (msg_size > FRAME_MSG_LEN) {
         // Write the first frame to the python script
@@ -271,6 +267,23 @@ void load_firmware(void) {
         // Print out message, but unpadded
         uint32_t index = unpad(frame_dec_start->msg, FRAME_MSG_LEN);
         frame_dec_start->msg[index] = '\0';
+        uart_write_str(UART0, frame_dec_start->msg);
+    }
+
+    for (uint32_t i = 1; i < fw_size; i++) {
+        // Read in the next frame
+        uart_write(UART0, read_frame(frame_enc_ptr));
+
+        // Decrypt the frame
+        decrypt(frame_enc_ptr, i, frame_dec_ptr->plaintext);
+
+        // If the frame is not a body frame, there is an error
+        if (frame_dec_ptr->type != 1) {
+            uart_write(UART0, ERROR);
+            return;
+        }
+
+        // Write the decrypted frame to the flash
         uart_write_str(UART0, frame_dec_start->msg);
     }
 
