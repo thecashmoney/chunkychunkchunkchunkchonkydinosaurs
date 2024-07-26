@@ -28,6 +28,7 @@
 void load_firmware(void);
 void boot_firmware(void);
 void uart_write_hex_bytes(uint8_t, uint8_t *, uint32_t);
+void decrypt(generic_frame *frame, uint16_t frame_num, uint8_t pad, uint8_t *plaintext);
 
 // Firmware Constants
 #define METADATA_BASE 0xFC00 // base address of version and firmware size in Flash
@@ -156,8 +157,6 @@ void receive_ciphertext(uint8_t *ciphertext)
 */
 void read_frame() 
 {
-    // Create a generic frame struct
-    generic_frame frame;
 
     // read the IV and tag and store them in the generic_frame struct
     receive_IV_tag(frame.IV, frame.tag); 
@@ -195,8 +194,10 @@ void read_frame()
 void load_firmware(void) {
 
     /* -------------------------------- TESTING CODE -------------------------------- */
+     // Create a generic frame struct
+    generic_frame *frame;
 
-    read_frame();
+    read_frame(frame);
 
     /* -------------------------------- END OF TEST CODE -------------------------------- */
 
@@ -377,4 +378,40 @@ void uart_write_hex_bytes(uint8_t uart, uint8_t * start, uint32_t len) {
         uart_write_str(uart, byte_str);
         uart_write_str(uart, " ");
     }
+}
+
+int decrypt(generic_frame *frame, uint16_t frame_num, uint8_t *plaintext) {
+    // Decrypt the frame
+    // Create a new AES context
+    Aes aes;
+
+    wc_AesSetKey(&aes, frame->IV, 16, frame->IV, AES_DECRYPTION);
+
+    uint8_t authIn[2] = {frame_num >> 8, frame_num & 0xFF};
+
+    // Decrypt the frame
+    int result = wc_AesGcmDecrypt(
+        & aes,
+        plaintext, // Storage for plaintext
+        frame->ciphertext, // Storage for ciphertext
+        480, // Ciphertext length
+        frame->IV, // IV
+        16, // IV length
+        frame->tag, // Tag
+        16, // Tag length
+        authIn, // Header
+        2 // Header length
+    );
+
+    // Verify the tag
+    if (result != 0) {
+        if (result == AES_GCM_AUTH_E) {
+            return AES_GCM_AUTH_E;
+        } else {
+            return 1;
+        }
+    }
+
+
+    return 0;
 }
