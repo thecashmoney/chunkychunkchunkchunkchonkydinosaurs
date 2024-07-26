@@ -2,6 +2,8 @@
 // Approved for public release. Distribution unlimited 23-02181-25.
 
 #include "bootloader.h"
+#include "../lib/wolfssl/wolfssl/wolfcrypt/error-crypt.h"
+#include "../inc/secrets.h"
 
 // Hardware Imports
 #include "inc/hw_memmap.h"    // Peripheral Base Addresses
@@ -28,6 +30,7 @@
 void load_firmware(void);
 void boot_firmware(void);
 void uart_write_hex_bytes(uint8_t, uint8_t *, uint32_t);
+int decrypt(generic_frame *frame, uint16_t frame_num, uint8_t *plaintext);
 
 // Firmware Constants
 #define METADATA_BASE 0xFC00 // base address of version and firmware size in Flash
@@ -36,6 +39,12 @@ void uart_write_hex_bytes(uint8_t, uint8_t *, uint32_t);
 // FLASH Constants
 #define FLASH_PAGESIZE 1024
 #define FLASH_WRITESIZE 4
+
+// Frame constants
+#define IV_LEN 16
+#define MAC_LEN 16
+#define FRAME_MSG_LEN 464
+#define FRAME_BODY_LEN 476
 
 // Protocol Constants
 #define OK ((unsigned char)0x00)
@@ -76,7 +85,6 @@ void debug_delay_led() {
     GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_3, 0x0);
 }
 
-
 int main(void) {
 
     // Enable the GPIO port that is used for the on-board LED.
@@ -85,7 +93,6 @@ int main(void) {
     // Check if the peripheral access is enabled.
     while (!SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOF)) {
     }
-
     // Enable the GPIO pin for the LED (PF3).  Set the direction as output, and
     // enable the GPIO pin for digital function.
     GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_3);
@@ -150,48 +157,6 @@ void receive_ciphertext(uint8_t *ciphertext)
     }
 }
 
-/*
-* Reads the packets sent by fw_update.py 
-* Sends the ciphertext to decrypt_ciphertext()
-*/
-void read_frame() 
-{
-    // Create a generic frame struct
-    generic_frame frame;
-
-    // read the IV and tag and store them in the generic_frame struct
-    receive_IV_tag(frame.IV, frame.tag); 
-
-    // send back a null byte 
-    uart_write(UART0, OK);
-
-
-    // read the ciphertext and store it in the generic_frame struct
-    receive_ciphertext(frame.ciphertext);
-
-    // send back a null byte 
-    uart_write(UART0, OK);
-
-
-    // TODO: Remove the testing for loops later
-    for (int i=0; i<16; i++)
-    {
-        uart_write(UART0, frame.IV[i]);
-    }    
-    for (int i=0; i<16; i++)
-    {
-        uart_write(UART0, frame.tag[i]);
-    }
-    for (int i=0; i<480; i++)
-    {
-        uart_write(UART0, frame.ciphertext[i]);
-    }
-    // End of testing for loops
-
-
-}
-
-
 // Unpads the plaintext and stores it in plaintext
 int unpad(uint8_t* plaintext) 
 {
@@ -204,6 +169,37 @@ int unpad(uint8_t* plaintext)
     return index;
 }
 
+/*
+* Reads the packets sent by fw_update.py 
+* Sends the ciphertext to decrypt_ciphertext()
+*/
+uint32_t read_frame(generic_frame *frame) 
+{
+    // read the IV and tag and store them in the generic_frame struct
+    receive_IV_tag(frame->IV, frame->tag); 
+
+    // read the ciphertext and store it in the generic_frame struct
+    receive_ciphertext(frame->ciphertext);
+
+    // send back a null byte 
+    return OK;
+
+
+    // // TODO: Remove the testing for loops later
+    // for (int i=0; i<16; i++)
+    // {
+    //     uart_write(UART0, frame->IV[i]);
+    // }    
+    // for (int i=0; i<16; i++)
+    // {
+    //     uart_write(UART0, frame->tag[i]);
+    // }
+    // for (int i=0; i<480; i++)
+    // {
+    //     uart_write(UART0, frame->ciphertext[i]);
+    // }
+}
+
 
  /*
  * Load the firmware into flash.
@@ -211,9 +207,83 @@ int unpad(uint8_t* plaintext)
 void load_firmware(void) {
 
     /* -------------------------------- TESTING CODE -------------------------------- */
+    // Actual variable for reading encrypted frames
+    generic_frame frame_encrypted;
+    generic_frame *frame_enc_ptr = &frame_encrypted;
+    // Actual variable for storing decrypting frames
+    generic_decrypted_frame frame_decrypted;
+    generic_decrypted_frame *frame_dec_ptr = &frame_decrypted;
+    // References to frame_decrypted, but can be read as if they were frame_dec_body / frame_dec_start
+    pltxt_body_frame *frame_dec_body = (pltxt_body_frame *) frame_dec_ptr;
+    pltxt_start_frame *frame_dec_start = (pltxt_start_frame *) frame_dec_ptr;
 
-    // Read the first start frame to get the total firmware size
-    read_frame();
+    uart_write(UART0, read_frame(frame_enc_ptr));
+
+    // Decrypt the very first start frame
+    decrypt(frame_enc_ptr, 0, frame_dec_ptr->plaintext);
+
+    // If the first frame is not 0, there is an error
+    if (frame_dec_ptr->type != 0) {
+        uart_write(UART0, ERROR);
+        return;
+    }
+
+    // Saving the metadata
+    uint32_t version = frame_dec_start->version_num;
+    uint32_t size = frame_dec_start->total_size;
+    uint32_t msg_size = frame_dec_start->msg_size;
+    // Making sure the old version isn't smaller than the current version
+    uint16_t old_version = *fw_version_address;
+    uint16_t old_size = *fw_size_address;
+    if (old_version == 0xFFFF) {
+        // Version not set
+        old_version = version;
+        old_size = size;
+    } else if (version < old_version) {
+        // Attempted rollback
+        uart_write(UART0, ERROR);
+        SysCtlReset();
+        return;
+    } else {
+        // Update version
+        old_version = version;
+        old_size = size;
+    }
+
+    if (msg_size > FRAME_MSG_LEN) {
+        // Write the first frame to the python script
+        uart_write_str(UART0, frame_dec_start->msg);
+
+        // Iterate through start frames
+        uint32_t num_frames = msg_size % FRAME_MSG_LEN == 0 ? (uint_fast32_t) (msg_size / FRAME_MSG_LEN): (uint32_t) (msg_size / FRAME_MSG_LEN) + 1;
+        for (uint32_t i = 1; i < num_frames; i++) {
+            // Read in the next frame
+            uart_write(UART0, read_frame(frame_enc_ptr));
+
+            // Decrypt the frame
+            decrypt(frame_enc_ptr, i, frame_dec_ptr->plaintext);
+
+            // If the frame is not a body frame, there is an error
+            if (frame_dec_ptr->type != 0) {
+                uart_write(UART0, ERROR);
+                return;
+            }
+
+            // Write the decrypted frame to the flash
+            uart_write_str(UART0, frame_dec_start->msg);
+        }
+        return;
+    } else if (msg_size == FRAME_MSG_LEN) {
+        // Write the first frame to the python script
+        uart_write_str(UART0, frame_dec_start->msg);
+    } else if (msg_size < FRAME_MSG_LEN) {
+        // Print out message, but unpadded
+        uint32_t index = unpad(frame_dec_start->msg, FRAME_MSG_LEN);
+        frame_dec_start->msg[index] = '\0';
+        uart_write_str(UART0, frame_dec_start->msg);
+    }
+
+    
 
     /* -------------------------------- END OF TEST CODE -------------------------------- */
 
@@ -394,4 +464,33 @@ void uart_write_hex_bytes(uint8_t uart, uint8_t * start, uint32_t len) {
         uart_write_str(uart, byte_str);
         uart_write_str(uart, " ");
     }
+}
+
+int decrypt(generic_frame *frame, uint16_t frame_num, uint8_t *plaintext) {
+    // Decrypt the frame
+    // Create a new AES context
+    Aes aes;
+    wc_AesGcmSetKey(&aes, AESKEY, 16); // Set the key
+
+    uint8_t authIn[2] = {frame_num >> 8, frame_num & 0xFF};
+
+    // Decrypt the frame
+    int result = wc_AesGcmDecrypt(
+        & aes,
+        plaintext, // Storage for plaintext
+        frame->ciphertext, // Reading in from ciphertext
+        480, // Ciphertext length
+        frame->IV, // IV
+        sizeof(frame->IV), // IV length
+        frame->tag, // Tag
+        sizeof(frame->tag), // Tag length
+        authIn, // Header
+        sizeof(authIn) // Header length
+    );
+
+    // Verify the tag
+    if (result != 0) 
+        return AES_GCM_AUTH_E;
+    
+    return 0;
 }
