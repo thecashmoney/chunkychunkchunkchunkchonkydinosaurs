@@ -12,10 +12,10 @@ the build outputs into the host tools directory for programming.
 It generates an AAD and a AES-GCM 128 bit cipher and stores them in secrets.h
 """
 
-
 import os
 import pathlib
 import subprocess
+from pwn import *
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 
@@ -26,6 +26,9 @@ BOOTLOADER_DIR = os.path.join(REPO_ROOT, "bootloader")
 def update_line(headerFile, varUpdate, value):
     # Expand environment variables in the file path
     headerFile = os.path.expandvars(headerFile)
+
+    # Make sure the varUpdate is in all caps
+    varUpdate = varUpdate.upper()
 
     # Read the existing content of the header file
     with open(headerFile, 'r') as file:
@@ -48,6 +51,12 @@ def update_line(headerFile, varUpdate, value):
     # Write the updated content back to the header file
     with open(headerFile, 'w') as file:
         file.writelines(lines)
+    
+    print(f"Updated {varUpdate} to \"{value}\"")
+    # Write the value to secret_build_output.txt
+    with open('../secret_build_output.txt', 'a') as file:
+        for i in value:
+            file.write(chr(i))
 
 # Convert the original byte format to a formatted string
 def bytes_to_formatted_string(byte_data):  
@@ -72,6 +81,8 @@ def make_bootloader() -> bool:
     aesKey = bytes_to_formatted_string(aesKeyAscii)
     print("Aes Key: ", aesKey)
 
+    with open('../secret_build_output.txt', 'r+') as file:
+        file.truncate(0)  # This will truncate the file to zero length
 
     # update secrets.h with the newly generated AES-GCM (128 bit) key
     update_line("${HOME}/chunkychunkchunkchunkchonkydinosaurs/bootloader/inc/secrets.h", "aesKey", aesKey)
@@ -83,13 +94,13 @@ def make_bootloader() -> bool:
     # --------------------- DO NOT TOUCH THIS CODE ---------------------
     # Build the bootloader from source.
 
-    '''os.chdir(BOOTLOADER_DIR)
+    os.chdir(BOOTLOADER_DIR)
 
     subprocess.call("make clean", shell=True)
     status = subprocess.call("make")
 
     # Return True if make returned 0, otherwise return False.
-    return status == 0'''
+    return status == 0
 
     # --------------------- END OF UNTOUCHABLE CODE ---------------------
 
