@@ -2,7 +2,8 @@
 #define SECRETS_H
 
 // bl_build.py
-#define AESKEY
-#define AAD
+#define aesKey
+
+#define AESKEY "\x74\xb9\x08\xd5\xea\x0c\x2d\x06\x54\x3d\x0e\x97\xc3\x2d\xff\x0c"
 
 #endif
