@@ -42,8 +42,8 @@ int decrypt(generic_frame *frame, uint16_t frame_num, uint8_t *plaintext);
 // Frame constants
 #define IV_LEN 16
 #define MAC_LEN 16
-#define MAX_MSG_LEN 464
-#define MAX_BODY_LEN 476
+#define FRAME_MSG_LEN 464
+#define FRAME_BODY_LEN 476
 
 // Protocol Constants
 #define OK ((unsigned char)0x00)
@@ -240,7 +240,16 @@ void load_firmware(void) {
         old_size = size;
     }
 
-    if (msg_size)
+    if (msg_size > FRAME_MSG_LEN) {
+        // Iterate through start frames
+        return;
+    } else if (msg_size == FRAME_MSG_LEN) {
+        // Print out single message
+        return;
+    } else if (msg_size < FRAME_MSG_LEN) {
+        // Print out message, but unpadded
+        return;
+    }
 
     
 
