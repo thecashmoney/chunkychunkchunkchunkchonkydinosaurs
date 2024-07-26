@@ -581,13 +581,13 @@ void uart_write_hex_bytes(uint8_t uart, uint8_t * start, uint32_t len) {
     }
 }
 
-int decrypt(generic_frame *frame, uint16_t frame_num, uint8_t *plaintext) {
+int decrypt(generic_frame *frame, uint16_t *frame_num, uint8_t *plaintext) {
     // Decrypt the frame
     // Create a new AES context
     Aes aes;
     wc_AesGcmSetKey(&aes, AESKEY, 16); // Set the key
 
-    uint8_t authIn[2] = {frame_num >> 8, frame_num & 0xFF};
+    uint8_t authIn[2] = {*frame_num >> 8, *frame_num & 0xFF};
 
     // Decrypt the frame
     int result = wc_AesGcmDecrypt(
