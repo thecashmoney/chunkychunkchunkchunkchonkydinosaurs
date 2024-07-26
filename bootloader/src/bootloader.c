@@ -30,7 +30,7 @@
 void load_firmware(void);
 void boot_firmware(void);
 void uart_write_hex_bytes(uint8_t, uint8_t *, uint32_t);
-int decrypt(generic_frame *frame, uint16_t frame_num, uint8_t *plaintext);
+int decrypt(generic_frame *frame, uint16_t *frame_num, uint8_t *plaintext);
 
 // Firmware Constants
 #define METADATA_BASE 0xFC00 // base address of version and firmware size in Flash
@@ -204,8 +204,10 @@ void load_firmware(void) {
 
     uart_write(UART0, read_frame(frame_enc_ptr));
 
+    uint32_t frame_ind = 0;
+    uint32_t *frame_index = &frame_ind;
     // Decrypt the very first start frame
-    decrypt(frame_enc_ptr, 0, frame_dec_ptr->plaintext);
+    decrypt(frame_enc_ptr, frame_index, frame_dec_ptr->plaintext);
 
     // If the first frame is not 0, there is an error
     if (frame_dec_ptr->type != 0) {
@@ -239,9 +241,6 @@ void load_firmware(void) {
     /* -------------------------------- This code if for the next start frames -------------------------------- */
 
     if (msg_size > FRAME_MSG_LEN) {
-        // Write the first frame to the python script
-        uart_write_str(UART0, frame_dec_start->msg);
-
         // Iterate through start frames
         uint32_t num_frames = msg_size % FRAME_MSG_LEN == 0 ? (uint_fast32_t) (msg_size / FRAME_MSG_LEN): (uint32_t) (msg_size / FRAME_MSG_LEN) + 1;
         for (uint32_t i = 1; i < num_frames; i++) {
@@ -249,7 +248,7 @@ void load_firmware(void) {
             uart_write(UART0, read_frame(frame_enc_ptr));
 
             // Decrypt the frame
-            decrypt(frame_enc_ptr, i, frame_dec_ptr->plaintext);
+            decrypt(frame_enc_ptr, frame_index, frame_dec_ptr->plaintext);
 
             // If the frame is not a body frame, there is an error
             if (frame_dec_ptr->type != 0) {
@@ -258,6 +257,11 @@ void load_firmware(void) {
             }
 
             // Write the decrypted frame to the flash
+            if (i == num_frames - 1) {
+                // Print out message, but unpadded
+                uint32_t index = unpad(frame_dec_start->msg, FRAME_MSG_LEN);
+                frame_dec_start->msg[index] = '\0';
+            }
             uart_write_str(UART0, frame_dec_start->msg);
         }
         return;
@@ -288,6 +292,46 @@ void load_firmware(void) {
         uart_write_str(UART0, frame_dec_start->msg);
     }
 
+    /* -------------------------------- This code if for the firmware body frames -------------------------------- */
+    // Iterate through body frames
+    uint32_t num_frames = fw_size % FRAME_BODY_LEN == 0 ? (uint_fast32_t) (fw_size / FRAME_BODY_LEN): (uint32_t) (fw_size / FRAME_BODY_LEN) + 1;
+    for (int i = 0; i < num_frames; i++) {
+        // Read in the next frame
+        uart_write(UART0, read_frame(frame_enc_ptr));
+
+        // Decrypt the frame
+        decrypt(frame_enc_ptr, frame_index, frame_dec_ptr->plaintext);
+        
+        // If the frame is not a body frame, there is an error
+        if (frame_dec_ptr->type != 1) {
+            uart_write(UART0, ERROR);
+            return;
+        }
+
+        // Write the decrypted frame to the flash
+        if (i == num_frames - 1) {
+            // Print out message, but unpadded
+            uint32_t index = unpad(frame_dec_body->plaintext, FRAME_BODY_LEN);
+            frame_dec_body->plaintext[index] = '\0';
+        } else {
+            uart_write_str(UART0, frame_dec_body->plaintext);
+        }
+    }
+    
+    /* -------------------------------- This code is for the end frame -------------------------------- */
+    // Read in the next frame
+    uart_write(UART0, read_frame(frame_enc_ptr));
+    decrypt(frame_enc_ptr, frame_index, frame_dec_ptr->plaintext);
+
+    // If the first frame is not 2, there is an error
+    if (frame_dec_ptr->type != 2) {
+        uart_write(UART0, ERROR);
+        return;
+    }
+    
+    
+    // Decrypt the frame
+    decrypt(frame_enc_ptr, frame_index, frame_dec_ptr->plaintext);
     
 
     /* -------------------------------- END OF TEST CODE -------------------------------- */
@@ -471,14 +515,14 @@ void uart_write_hex_bytes(uint8_t uart, uint8_t * start, uint32_t len) {
     }
 }
 
-int decrypt(generic_frame *frame, uint16_t frame_num, uint8_t *plaintext) {
+int decrypt(generic_frame *frame, uint16_t *frame_num, uint8_t *plaintext) {
     // Decrypt the frame
     // Create a new AES context
     Aes aes;
 
     wc_AesGcmSetKey(&aes, AESKEY, 16); // Set the key
 
-    uint8_t authIn[2] = {frame_num >> 8, frame_num & 0xFF};
+    uint8_t authIn[2] = {*frame_num >> 8, *frame_num & 0xFF};
 
     // Decrypt the frame
     int result = wc_AesGcmDecrypt(
@@ -503,6 +547,7 @@ int decrypt(generic_frame *frame, uint16_t frame_num, uint8_t *plaintext) {
         }
     }
 
+    *frame_num++;
 
     return 0;
 }
