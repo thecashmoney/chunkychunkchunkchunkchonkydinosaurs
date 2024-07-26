@@ -8,9 +8,6 @@
 #include <stdint.h>
 #include <string.h>
 
-#define IV_LEN 16
-#define MAX_MSG_LEN 256
-
 // FLASH Constants
 #define FLASH_PAGESIZE 1024
 #define FLASH_WRITESIZE 4
@@ -21,13 +18,12 @@
 #define UPDATE ((unsigned char)'U')
 #define BOOT ((unsigned char)'B')
 
-// Data buffer sizes
-#define META_LEN 22 // Excludes message bytes
+// Frame constants
 #define IV_LEN 16
-#define MAX_MSG_LEN 256
-#define BLOCK_SIZE FLASH_PAGESIZE
-#define SIG_SIZE 256
-#define CHUNK_SIZE (BLOCK_SIZE + SIG_SIZE)
+#define MAC_LEN 16
+#define FRAME_MSG_LEN 464
+#define FRAME_BODY_LEN 476
+#define PLAINTEXT_MINUS_TAG 476
 
 #define MAX_CHUNK_NO 32 // 30KB firmware + padding
 
@@ -46,7 +42,7 @@ typedef struct pltxt_start_frame {
     uint32_t    version_num;
     uint32_t    total_size;
     uint32_t    msg_size;
-    uint8_t     msg[464];
+    uint8_t     msg[FRAME_MSG_LEN];
 } pltxt_start_frame;
 
 
@@ -54,7 +50,7 @@ typedef struct pltxt_body_frame {
     uint8_t     IV[16];
     uint8_t     tag[16];
     uint32_t    type;
-    uint8_t     plaintext[476];
+    uint8_t     plaintext[FRAME_BODY_LEN];
 } pltxt_body_frame;
 
 typedef struct generic_frame {
@@ -67,8 +63,15 @@ typedef struct generic_decrypted_frame {
     uint8_t             IV[16];
     uint8_t             tag[16];
     uint32_t            type;
-    uint8_t             plaintext[476];
+    uint8_t             plaintext[PLAINTEXT_MINUS_TAG];
 } generic_decrypted_frame;
+
+typedef struct pltxt_end_frame {
+    uint8_t     IV[16];
+    uint8_t     tag[16];
+    uint32_t    type;
+    uint8_t     padding[PLAINTEXT_MINUS_TAG];
+} pltxt_end_frame;
 
 long program_flash(void* page_addr, unsigned char * data, unsigned int data_len);
 
