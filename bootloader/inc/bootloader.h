@@ -40,17 +40,21 @@
 
 
 typedef struct pltxt_start_frame {
-    uint8_t     type;
-    uint16_t    version_num;
+    uint8_t     IV[16];
+    uint8_t     tag[16];
+    uint32_t    type;
+    uint32_t    version_num;
     uint32_t    total_size;
-    uint16_t    msg_size;
-    uint8_t     msg[471];
+    uint32_t    msg_size;
+    uint8_t     msg[464];
 } pltxt_start_frame;
 
 
 typedef struct pltxt_body_frame {
-    uint8_t     type;
-    uint8_t     plaintext[479];
+    uint8_t     IV[16];
+    uint8_t     tag[16];
+    uint32_t    type;
+    uint8_t     plaintext[476];
 } pltxt_body_frame;
 
 typedef struct generic_frame {
@@ -62,8 +66,8 @@ typedef struct generic_frame {
 typedef struct generic_decrypted_frame {
     uint8_t             IV[16];
     uint8_t             tag[16];
-    uint8_t             type;
-    uint8_t             plaintext[479];
+    uint32_t            type;
+    uint8_t             plaintext[476];
 } generic_decrypted_frame;
 
 long program_flash(void* page_addr, unsigned char * data, unsigned int data_len);
