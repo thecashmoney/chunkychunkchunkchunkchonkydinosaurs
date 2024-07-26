@@ -59,6 +59,13 @@ typedef struct generic_frame {
     uint8_t             ciphertext[480];
 } generic_frame;
 
+typedef struct generic_decrypted_frame {
+    uint8_t             IV[16];
+    uint8_t             tag[16];
+    uint8_t             type;
+    uint8_t             plaintext[479];
+} generic_decrypted_frame;
+
 long program_flash(void* page_addr, unsigned char * data, unsigned int data_len);
 
 #endif
