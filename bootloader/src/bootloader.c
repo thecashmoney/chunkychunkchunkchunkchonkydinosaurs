@@ -211,10 +211,12 @@ void load_firmware(void) {
     uint32_t msg_size = frame_dec_start->msg_size;
 
     // Making sure the old version isn't smaller than the current version
-    uint32_t old_version = *fw_version_address;
+    uint16_t old_version = *fw_version_address;
+    uint16_t old_size = *fw_size_address;
     if (old_version == 0xFFFF) {
         // Version not set
-        old_version = 1;
+        old_version = version;
+        old_size = size;
     } else if (version < old_version) {
         // Attempted rollback
         uart_write(UART0, ERROR);
@@ -223,22 +225,10 @@ void load_firmware(void) {
     } else {
         // Update version
         old_version = version;
+        old_size = size;
     }
 
-    switch (frame_dec_ptr->type) {
-        case 0:
-            uart_write(UART0, OK);
-            break;
-        case 1:
-            uart_write(UART0, ERROR);
-            break;
-        case 2:
-            uart_write(UART0, ERROR);
-            break;
-        default:
-            uart_write(UART0, ERROR);
-            break;
-    }
+    
 
     /* -------------------------------- END OF TEST CODE -------------------------------- */
 
