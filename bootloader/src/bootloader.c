@@ -209,7 +209,10 @@ void load_firmware(void) {
     uint32_t frame_ind = 0;
     uint32_t *frame_index = &frame_ind;
     // Decrypt the very first start frame
-    decrypt(frame_enc_ptr, frame_index, frame_dec_ptr->plaintext);
+    if (decrypt(frame_enc_ptr, frame_index, frame_dec_ptr->plaintext) != 0) {
+        uart_write(UART0, ERROR);
+        return;
+    }
 
     // If the first frame is not 0, there is an error
     if (frame_dec_ptr->type != 0) 
@@ -256,7 +259,10 @@ void load_firmware(void) {
             uart_write(UART0, read_frame(frame_enc_ptr));
 
             // Decrypt the frame
-            decrypt(frame_enc_ptr, frame_index, frame_dec_ptr->plaintext);
+            if (decrypt(frame_enc_ptr, frame_index, frame_dec_ptr->plaintext) != 0) {
+                uart_write(UART0, ERROR);
+                return;
+            }
 
             // If the frame is not a body frame, there is an error
             if (frame_dec_ptr->type != 0) 
@@ -293,7 +299,10 @@ void load_firmware(void) {
         uart_write(UART0, read_frame(frame_enc_ptr));
 
         // Decrypt the frame
-        decrypt(frame_enc_ptr, i, frame_dec_ptr->plaintext);
+        if (decrypt(frame_enc_ptr, frame_index, frame_dec_ptr->plaintext) != 0) {
+            uart_write(UART0, ERROR);
+            return;
+        }
 
         // If the frame is not a body frame, there is an error
         if (frame_dec_ptr->type != 1) {
@@ -313,7 +322,10 @@ void load_firmware(void) {
         uart_write(UART0, read_frame(frame_enc_ptr));
 
         // Decrypt the frame
-        decrypt(frame_enc_ptr, frame_index, frame_dec_ptr->plaintext);
+        if (decrypt(frame_enc_ptr, frame_index, frame_dec_ptr->plaintext) != 0) {
+            uart_write(UART0, ERROR);
+            return;
+        }
         
         // If the frame is not a body frame, there is an error
         if (frame_dec_ptr->type != 1) {
@@ -334,6 +346,11 @@ void load_firmware(void) {
     /* -------------------------------- This code is for the end frame -------------------------------- */
     // Read in the next frame
     uart_write(UART0, read_frame(frame_enc_ptr));
+    // Decrypt the frame
+    if (decrypt(frame_enc_ptr, frame_index, frame_dec_ptr->plaintext) != 0) {
+        uart_write(UART0, ERROR);
+        return;
+    }
 
     // If the first frame is not 2, there is an error
     if (frame_dec_ptr->type != 2) {
@@ -341,8 +358,6 @@ void load_firmware(void) {
         return;
     }
 
-    // Decrypt the frame
-    decrypt(frame_enc_ptr, frame_index, frame_dec_ptr->plaintext);
     
 
     /* -------------------------------- END OF TEST CODE -------------------------------- */
