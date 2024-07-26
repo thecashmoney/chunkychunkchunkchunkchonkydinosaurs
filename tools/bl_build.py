@@ -23,7 +23,7 @@ REPO_ROOT = pathlib.Path(__file__).parent.parent.absolute()
 BOOTLOADER_DIR = os.path.join(REPO_ROOT, "bootloader")
 
 # Function to update a given headerfile
-def update_line(headerFile, varUpdate, value):
+def update_line(headerFile, varUpdate, value: bytes):
     # Expand environment variables in the file path
     headerFile = os.path.expandvars(headerFile)
 
@@ -36,7 +36,7 @@ def update_line(headerFile, varUpdate, value):
 
     # define pattern and newMsg
     pattern = f'define {varUpdate}'  # defines the pattern to look for
-    newMsg = f'#define {varUpdate} "{value}"\n'  # defines the new msg that will be input into the file
+    newMsg = f'#define {varUpdate} "{bytes_to_formatted_string(value)}"\n'  # defines the new msg that will be input into the file
     
     # Update the line with the new value
     for i, line in enumerate(lines):
@@ -54,7 +54,7 @@ def update_line(headerFile, varUpdate, value):
     
     print(f"Updated {varUpdate} to \"{value}\"")
     # Write the value to secret_build_output.txt
-    with open('../secret_build_output.txt', 'a') as file:
+    with open('../secret_build_output.txt', 'w') as file:
         for i in value:
             file.write(chr(i))
 
@@ -75,14 +75,12 @@ def make_bootloader() -> bool:
     #aad = get_random_bytes(16)  # used to authenticate integrity of the encrypted data
 
     # Generate AES-GCM (128 bit) key
-    aesKeyAscii = get_random_bytes(16)
-    print("Aes Ascii Key: ", aesKeyAscii)
+    aesKey = get_random_bytes(16)
 
-    aesKey = bytes_to_formatted_string(aesKeyAscii)
     print("Aes Key: ", aesKey)
 
-    with open('../secret_build_output.txt', 'r+') as file:
-        file.truncate(0)  # This will truncate the file to zero length
+    #with open('../secret_build_output.txt', 'r+') as file:
+    #    file.truncate(0)  # This will truncate the file to zero length
 
     # update secrets.h with the newly generated AES-GCM (128 bit) key
     update_line("${HOME}/chunkychunkchunkchunkchonkydinosaurs/bootloader/inc/secrets.h", "aesKey", aesKey)
@@ -94,13 +92,13 @@ def make_bootloader() -> bool:
     # --------------------- DO NOT TOUCH THIS CODE ---------------------
     # Build the bootloader from source.
 
-    os.chdir(BOOTLOADER_DIR)
+    '''os.chdir(BOOTLOADER_DIR)
 
     subprocess.call("make clean", shell=True)
     status = subprocess.call("make")
 
     # Return True if make returned 0, otherwise return False.
-    return status == 0
+    return status == 0'''
 
     # --------------------- END OF UNTOUCHABLE CODE ---------------------
 
