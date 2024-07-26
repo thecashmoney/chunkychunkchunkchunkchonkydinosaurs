@@ -28,7 +28,7 @@
 void load_firmware(void);
 void boot_firmware(void);
 void uart_write_hex_bytes(uint8_t, uint8_t *, uint32_t);
-void decrypt(generic_frame *frame, uint16_t frame_num, uint8_t pad, uint8_t *plaintext);
+int decrypt(generic_frame *frame, uint16_t frame_num, uint8_t *plaintext);
 
 // Firmware Constants
 #define METADATA_BASE 0xFC00 // base address of version and firmware size in Flash
@@ -155,8 +155,10 @@ void receive_ciphertext(uint8_t *ciphertext)
 * Reads the packets sent by fw_update.py 
 * Sends the ciphertext to decrypt_ciphertext()
 */
-void read_frame() 
+void read_frame(generic_frame *frame) 
 {
+    // Create a generic frame struct
+    generic_frame frame;
 
     // read the IV and tag and store them in the generic_frame struct
     receive_IV_tag(frame.IV, frame.tag); 
@@ -194,8 +196,8 @@ void read_frame()
 void load_firmware(void) {
 
     /* -------------------------------- TESTING CODE -------------------------------- */
-     // Create a generic frame struct
-    generic_frame *frame;
+    generic_frame frame_encrypted;
+    generic_frame *frame = &frame_encrypted;
 
     read_frame(frame);
 
