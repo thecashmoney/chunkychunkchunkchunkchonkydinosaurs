@@ -210,6 +210,21 @@ void load_firmware(void) {
     uint32_t size = frame_dec_start->total_size;
     uint32_t msg_size = frame_dec_start->msg_size;
 
+    // Making sure the old version isn't smaller than the current version
+    uint32_t old_version = *fw_version_address;
+    if (old_version == 0xFFFF) {
+        // Version not set
+        old_version = 1;
+    } else if (version < old_version) {
+        // Attempted rollback
+        uart_write(UART0, ERROR);
+        SysCtlReset();
+        return;
+    } else {
+        // Update version
+        old_version = version;
+    }
+
     switch (frame_dec_ptr->type) {
         case 0:
             uart_write(UART0, OK);
