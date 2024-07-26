@@ -242,6 +242,9 @@ void load_firmware(void) {
     }
 
     if (msg_size > FRAME_MSG_LEN) {
+        // Write the first frame to the python script
+        uart_write_str(UART0, frame_dec_start->msg);
+
         // Iterate through start frames
         uint32_t num_frames = msg_size % FRAME_MSG_LEN == 0 ? (uint_fast32_t) (msg_size / FRAME_MSG_LEN): (uint32_t) (msg_size / FRAME_MSG_LEN) + 1;
         for (uint32_t i = 1; i < num_frames; i++) {
@@ -258,15 +261,17 @@ void load_firmware(void) {
             }
 
             // Write the decrypted frame to the flash
-            program_flash((void *) (FW_BASE + (i - 1) * FRAME_BODY_LEN), frame_dec_body->plaintext, FRAME_BODY_LEN);
+            uart_write_str(UART0, frame_dec_start->msg);
         }
         return;
     } else if (msg_size == FRAME_MSG_LEN) {
-        // Print out single message
-        return;
+        // Write the first frame to the python script
+        uart_write_str(UART0, frame_dec_start->msg);
     } else if (msg_size < FRAME_MSG_LEN) {
         // Print out message, but unpadded
-        return;
+        uint32_t index = unpad(frame_dec_start->msg, FRAME_MSG_LEN);
+        frame_dec_start->msg[index] = '\0';
+        uart_write_str(UART0, frame_dec_start->msg);
     }
 
     
