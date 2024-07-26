@@ -36,7 +36,7 @@ def update_line(headerFile, varUpdate, value):
 
     # define pattern and newMsg
     pattern = f'define {varUpdate}'  # defines the pattern to look for
-    newMsg = f'#define {varUpdate} 0x{value.hex()}\n'  # defines the new msg that will be input into the file
+    newMsg = f'#define {varUpdate} "{value}"\n'  # defines the new msg that will be input into the file
     
     # Update the line with the new value
     for i, line in enumerate(lines):
@@ -58,23 +58,37 @@ def update_line(headerFile, varUpdate, value):
         for i in value:
             file.write(chr(i))
 
+# Convert the original byte format to a formatted string
+def bytes_to_formatted_string(byte_data):  
+    res = ''
+
+    for b in byte_data:
+        # Convert each byte to its hexadecimal representation and format it as \xHH
+        formatted_string = ''.join(f'\\x{b:02x}')
+        res += formatted_string
+
+    return res
 
 # Function to generate the keys and build the bootloader
 def make_bootloader() -> bool:
     # Generate AAD (Additional Authentication Data)
-    aad = get_random_bytes(16)  # used to authenticate integrity of the encrypted data
+    #aad = get_random_bytes(16)  # used to authenticate integrity of the encrypted data
 
     # Generate AES-GCM (128 bit) key
-    aesKey = get_random_bytes(16)
+    aesKeyAscii = get_random_bytes(16)
+    print("Aes Ascii Key: ", aesKeyAscii)
+
+    aesKey = bytes_to_formatted_string(aesKeyAscii)
+    print("Aes Key: ", aesKey)
 
     with open('../secret_build_output.txt', 'r+') as file:
         file.truncate(0)  # This will truncate the file to zero length
 
     # update secrets.h with the newly generated AES-GCM (128 bit) key
-    update_line("../bootloader/inc/secrets.h", "aesKey", aesKey)
+    update_line("${HOME}/chunkychunkchunkchunkchonkydinosaurs/bootloader/inc/secrets.h", "aesKey", aesKey)
 
     # update secrets.h with the newly generated AAD 
-    update_line("../bootloader/inc/secrets.h", "aad", aad)
+    #update_line("${HOME}/chunkychunkchunkchunkchonkydinosaurs/bootloader/inc/secrets.h", "aad", aad.hex())
 
 
     # --------------------- DO NOT TOUCH THIS CODE ---------------------
