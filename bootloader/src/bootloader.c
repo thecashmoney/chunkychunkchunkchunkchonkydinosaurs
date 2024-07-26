@@ -190,22 +190,28 @@ uint32_t read_frame(generic_frame *frame)
 void load_firmware(void) {
 
     /* -------------------------------- TESTING CODE -------------------------------- */
+    // Actual variable for reading encrypted frames
     generic_frame frame_encrypted;
     generic_frame *frame_enc_ptr = &frame_encrypted;
+    // Actual variable for storing decrypting frames
     generic_decrypted_frame frame_decrypted;
     generic_decrypted_frame *frame_dec_ptr = &frame_decrypted;
+    // References to frame_decrypted, but can be read as if they were frame_dec_body / frame_dec_start
     pltxt_body_frame *frame_dec_body = (pltxt_body_frame *) frame_dec_ptr;
     pltxt_start_frame *frame_dec_start = (pltxt_start_frame *) frame_dec_ptr;
 
     uart_write(UART0, read_frame(frame_enc_ptr));
 
+    // Decrypt the very first start frame
     decrypt(frame_enc_ptr, 0, frame_dec_ptr->plaintext);
 
+    // If the first frame is not 0, there is an error
     if (frame_dec_ptr->type != 0) {
         uart_write(UART0, ERROR);
         return;
     }
 
+    // Saving the metadata
     uint32_t version = frame_dec_start->version_num;
     uint32_t size = frame_dec_start->total_size;
     uint32_t msg_size = frame_dec_start->msg_size;
