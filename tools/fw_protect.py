@@ -62,14 +62,15 @@ def start_protect(size: int, version: int, message: str):
     #-----------------------------------------WRITE MESSAGE INTO METADATA
     while index < len(msg):
         if (len(msg) - index) < 464:
-            # Pad the data if there is less than 479 bytes left of plaintxt
-            msg = pad(sizes + msg, 480, style='iso7816')
-            metadata.append(msg)
+            # Pad the data if there is less than 464 bytes left of plaintxt
+            plaintext = pad(sizes + msg[index:], 480, style='iso7816')
+            metadata.append(plaintext)
+
         else:
-            # Add 479 bytes of plaintext
+            # Add 464 bytes of plaintext
             metadata.append(sizes + msg[index:index + 464])
+
         index += 464
-    
     #----------------------ENCRYPTION----------------------------------
     with open("../secret_build_output.txt", "rb") as keyfile:
         key = keyfile.read(16)
@@ -96,7 +97,7 @@ def start_protect(size: int, version: int, message: str):
             iv, tag, ciphertext = i
             f.write(iv + tag + ciphertext)
 
-    return ceildiv(len(msg),471)
+    return ceildiv(len(msg),464)
 
 
 def protect_body(frame_index: int, data: bytes):

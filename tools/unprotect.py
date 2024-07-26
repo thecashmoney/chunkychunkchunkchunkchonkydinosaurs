@@ -48,11 +48,11 @@ def printStart_noPad(i:bytes, key:bytes, aad:int):
     # Getting plaintext with data and metadata
     plaintext = cipher.decrypt_and_verify(ciphertext, tag)
 
-    print("Msg type: ", u8(plaintext[:1]))
-    print("Version number: ", u16(plaintext[1:3]))
-    print("Total size: ", u32(plaintext[3:7]))
-    print("Release msg size: ", u16(plaintext[7:9]))
-    print("Release msg: ", plaintext[9:480])
+    print("Msg type: ", u32(plaintext[:4]))
+    print("Version number: ", u32(plaintext[4:8]))
+    print("Total size: ", u32(plaintext[8:12]))
+    print("Release msg size: ", u32(plaintext[12:16]))
+    print("Release msg: ", plaintext[16:])
 
 def printStart_Pad(i:bytes, key:bytes, aad:int):
     iv = i[:16]
@@ -65,11 +65,11 @@ def printStart_Pad(i:bytes, key:bytes, aad:int):
     pt = unpad(plaintext, block_size=480, style='iso7816')
 
 
-    print("Msg type: ", u8(pt[:1]))
-    print("Version number: ", u16(pt[1:3]))
-    print("Total size: ", u32(pt[3:7]))
-    print("Release msg size: ", u16(pt[7:9]))
-    print("Release msg: ", pt[9:])
+    print("Msg type: ", u32(pt[:4]))
+    print("Version number: ", u32(pt[4:8]))
+    print("Total size: ", u32(pt[8:12]))
+    print("Release msg size: ", u32(pt[12:16]))
+    print("Release msg: ", pt[16:])
 
 
 
@@ -88,11 +88,11 @@ def unprotect_start(frames, key):#------------------------------------UNPROTECT 
     plaintext = cipher.decrypt_and_verify(ciphertext, tag)
     padLastChonk = True
     
-    rmsize = u16(plaintext[7:9])
-    if rmsize % 471 != 0:
-        numFrames = (rmsize // 471) + 1
+    rmsize = u32(plaintext[12:16])
+    if rmsize % 464 != 0:
+        numFrames = (rmsize // 464) + 1
     else:
-        numFrames = (rmsize // 471)
+        numFrames = (rmsize // 464)
         padLastChonk = False
 
     #------------------------------------------GET MIDDLE CHONKS
@@ -107,7 +107,7 @@ def unprotect_start(frames, key):#------------------------------------UNPROTECT 
     else:
         printStart_noPad(frames[numFrames-1], key, numFrames-1)
 
-    return((u32(plaintext[3:7]), numFrames))
+    return((u32(plaintext[8:12]), numFrames))
     
     
 
@@ -179,7 +179,7 @@ def unprotect_body(frames, key, index, size):
     index += 1
 
     # Returning the length of the complete firmware
-    print("Length of firmare according to file:", size, "\nLength of firmware according to us", len(complete_firmware))
+    print("Length of firmare according to file:", size, "\nLength of firmware according to us:", len(complete_firmware))
     
     return index
 
