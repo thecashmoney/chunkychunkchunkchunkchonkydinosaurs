@@ -39,6 +39,12 @@ int decrypt(generic_frame *frame, uint16_t frame_num, uint8_t *plaintext);
 #define FLASH_PAGESIZE 1024
 #define FLASH_WRITESIZE 4
 
+// Frame constants
+#define IV_LEN 16
+#define MAC_LEN 16
+#define MAX_MSG_LEN 464
+#define MAX_BODY_LEN 476
+
 // Protocol Constants
 #define OK ((unsigned char)0x00)
 #define ERROR ((unsigned char)0x01)
@@ -233,6 +239,8 @@ void load_firmware(void) {
         old_version = version;
         old_size = size;
     }
+
+    if (msg_size)
 
     
 
