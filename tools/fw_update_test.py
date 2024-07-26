@@ -12,13 +12,10 @@ import serial
 from util import *
 
 ser = serial.Serial("/dev/ttyACM0", 115200)
-
 RESP_OK = b"\x00"
 FRAME_SIZE = 512
-#OFFSET = 0
 NUM_FRAMES = 1
 FRAMES_SENT = 0
-
 
 '''IV = b''
 tag = b''
@@ -41,50 +38,50 @@ def wait_for_update():
         ctr += 1
         pass
 
-def send_IV_and_tag(ser, debug=False):
-    # IV = metadata[0:16]
-    # tag = metadata[16:32]
+# def send_IV_and_tag(ser, debug=False):
+#     # IV = metadata[0:16]
+#     # tag = metadata[16:32]
 
-    # Handshake for update
+#     # Handshake for update
 
-    ser.write(IV)
-    ser.write(tag)
-    print("Packaged IV and tag")
+#     ser.write(IV)
+#     ser.write(tag)
+#     print("Packaged IV and tag")
 
-    # Wait for an OK from the bootloader.
-    resp = ser.read(1)
-    print("Resp: ", resp)
-    if resp != RESP_OK:
-        raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(resp)))
+#     # Wait for an OK from the bootloader.
+#     resp = ser.read(1)
+#     print("Resp: ", resp)
+#     if resp != RESP_OK:
+#         raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(resp)))
     
-    # TODO: Remove the IV & TAG debug statements later
-    vi = b''
-    vi = ser.read(16)
-    print("IV: ", vi)
+#     # TODO: Remove the IV & TAG debug statements later
+#     vi = b''
+#     vi = ser.read(16)
+#     print("IV: ", vi)
 
-    gat = b''
-    gat = ser.read(16)
-    print(f"Tag: {gat}")
+#     gat = b''
+#     gat = ser.read(16)
+#     print(f"Tag: {gat}")
 
 
-def send_ciphertext(ser, filepath, debug=False):
-    f = open(filepath, "rb")
-    data = f.read(512)
+# def send_ciphertext(ser, filepath, debug=False):
+#     f = open(filepath, "rb")
+#     data = f.read(512)
 
-    ciphertext = data[32:]
-    ser.write(ciphertext)
+#     ciphertext = data[32:]
+#     ser.write(ciphertext)
 
-    # Wait for an OK from the bootloader.
-    resp = ser.read(1)
-    print("Resp: ", resp)
-    if resp != RESP_OK:
-        raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(resp)))
+#     # Wait for an OK from the bootloader.
+#     resp = ser.read(1)
+#     print("Resp: ", resp)
+#     if resp != RESP_OK:
+#         raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(resp)))
     
-    # TODO: Remove the ciphertext debug statements later
-    ct = b''
-    ct = ser.read(480)
-    print("CT: ", ct)
-    print("Length: ", len(ct))
+#     # TODO: Remove the ciphertext debug statements later
+#     ct = b''
+#     ct = ser.read(480)
+#     print("CT: ", ct)
+#     print("Length: ", len(ct))
 
 def calc_num_frames(file):
     if len(file) % FRAME_SIZE == 0:
@@ -117,22 +114,22 @@ def send_frame(ser, data, debug=False):
     if debug:
         print("Resp: {}".format(ord(resp)))
 
-    # TODO: Remove the IV, TAG, & CIPHERTEXT debug statements later
-    vi = b''
-    vi = ser.read(16)
-    print("IV: ", vi)
+    # # TODO: Remove the IV, TAG, & CIPHERTEXT debug statements later
+    # vi = b''
+    # vi = ser.read(16)
+    # print("IV: ", vi)
 
-    gat = b''
-    gat = ser.read(16)
-    print(f"Tag: {gat}")
+    # gat = b''
+    # gat = ser.read(16)
+    # print(f"Tag: {gat}")
 
-    ct = b''
-    ct = ser.read(480)
-    print("CT: ", ct)
-    print("Length: ", len(ct))
+    # ct = b''
+    # ct = ser.read(480)
+    # print("CT: ", ct)
+    # print("Length: ", len(ct))
 
 
-def main():
+def main(infile):
     # declare the variables as global
     '''global FRAME_SIZE
     global NUM_FRAMES
@@ -141,8 +138,8 @@ def main():
 
     #send_IV_and_tag(ser)
     #send_ciphertext(ser, "tester.bin")
-    calc_num_frames("tester.bin")
-    f = open("tester.bin", "rb")
+    calc_num_frames(infile)
+    f = open(infile, "rb")
     data = f.read()
     wait_for_update()
 
@@ -152,5 +149,9 @@ def main():
     ser.close()
 
 
+
+def test_reader():
+    
 if __name__ == "__main__":
-    main()
+    parser.add_argument("--firmware", help="Path to firmware image to load.", required=True)
+    main(infile=args.firmware)

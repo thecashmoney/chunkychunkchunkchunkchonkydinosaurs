@@ -232,6 +232,8 @@ void load_firmware(void) {
     uint32_t version = frame_dec_start->version_num;
     uint32_t size = frame_dec_start->total_size;
     uint32_t msg_size = frame_dec_start->msg_size;
+
+
     // Making sure the old version isn't smaller than the current version
     uint16_t old_version = *fw_version_address;
     uint16_t old_size = *fw_size_address;
@@ -252,9 +254,14 @@ void load_firmware(void) {
 
     if (msg_size > FRAME_MSG_LEN) {
         // Write the first frame to the python script
-        uart_write_str(UART0, frame_dec_start->msg);
+        // uart_write_str(UART0, frame_dec_start->msg);
 
+
+        // for(int i = 0; i < sizeof(frame_dec_start->msg); i++) {
+        //     uart_write(UART0, frame_dec_start->msg[i]);
+        // }
         // Iterate through start frames
+
         uint32_t num_frames = msg_size % FRAME_MSG_LEN == 0 ? (uint_fast32_t) (msg_size / FRAME_MSG_LEN): (uint32_t) (msg_size / FRAME_MSG_LEN) + 1;
         for (uint32_t i = 1; i < num_frames; i++) {
             // Read in the next frame
@@ -263,6 +270,8 @@ void load_firmware(void) {
             // Decrypt the frame
             decrypt(frame_enc_ptr, i, frame_dec_ptr->plaintext);
 
+            
+
             // If the frame is not a body frame, there is an error
             if (frame_dec_ptr->type != 0) {
                 uart_write(UART0, ERROR);
@@ -270,7 +279,12 @@ void load_firmware(void) {
             }
 
             // Write the decrypted frame to the flash
-            uart_write_str(UART0, frame_dec_start->msg);
+            // uart_write_str(UART0, frame_dec_start->msg);
+
+            //tests that the decrypted msg is correct
+            for(int i = 0; i < sizeof(frame_dec_start->msg); i++) {
+                uart_write(UART0, frame_dec_start->msg[i]);
+            }
         }
         return;
     } else if (msg_size == FRAME_MSG_LEN) {
@@ -282,8 +296,6 @@ void load_firmware(void) {
         frame_dec_start->msg[index] = '\0';
         uart_write_str(UART0, frame_dec_start->msg);
     }
-
-    
 
     /* -------------------------------- END OF TEST CODE -------------------------------- */
 
