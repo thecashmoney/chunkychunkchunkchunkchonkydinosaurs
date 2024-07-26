@@ -128,14 +128,14 @@ def protect_body(frame_index: int, data: bytes):
         plaintext += b'\x01'
         # Adding firmware plaintext
         if len(data) - index < (480 - len(plaintext)):
-            # Pad the data if there is less than 479 bytes left of plaintxt
+            # Pad the data if there is less than 464 bytes left of plaintxt
             plaintext += data[index:]
             plaintext = pad(plaintext, 480, style='iso7816')
         else:
-            # Add 479 bytes of plaintext
-            plaintext += data[index:index + 479]
+            # Add 464 bytes of plaintext
+            plaintext += data[index:index + 464]
 
-        index += 479
+        index += 464
 
         # Encrypt the data
         cipher = AES.new(key, AES.MODE_GCM, nonce=iv, mac_len=16)

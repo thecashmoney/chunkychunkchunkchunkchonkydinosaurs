@@ -113,7 +113,7 @@ def unprotect_start(frames, key):#------------------------------------UNPROTECT 
 
 def unprotect_body(frames, key, index, size):
     complete_firmware = b''
-    for x in range(0, size // 471):
+    for x in range(0, size // 464):
         current = frames[index]
 
         # Same for all the frames
@@ -144,7 +144,7 @@ def unprotect_body(frames, key, index, size):
         index += 1
     
     # No padded chunk
-    if size % 479 == 0:
+    if size % 464 == 0:
         print(len(complete_firmware))
         return index
 
