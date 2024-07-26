@@ -163,10 +163,10 @@ void receive_ciphertext(uint8_t *ciphertext)
 }
 
 // Unpads the plaintext and stores it in plaintext
-int unpad(uint8_t* plaintext) 
+int unpad(uint8_t* plaintext, uint32_t plaintext_length) 
 {
     int index;
-    for(int i = 479; i >= 0; i--) 
+    for(int i = plaintext_length; i >= 0; i--) 
     {
         if(plaintext[i] == 0x80) 
             index = i;
