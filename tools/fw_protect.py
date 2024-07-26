@@ -23,6 +23,11 @@ from base64 import b64decode
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 
+
+RMmax = 464
+DATAmax = 476
+
+
 def ceildiv(a, b):
     return -(a // -b)
 
@@ -51,6 +56,7 @@ def start_protect(size: int, version: int, message: str):
     last 463 bytes: 
     """
 
+
     msg = bytearray(message.encode('utf-8'))
 
     metadata = []
@@ -61,16 +67,16 @@ def start_protect(size: int, version: int, message: str):
 
     #-----------------------------------------WRITE MESSAGE INTO METADATA
     while index < len(msg):
-        if (len(msg) - index) < 464:
-            # Pad the data if there is less than 464 bytes left of plaintxt
+        if (len(msg) - index) < RMmax:
+            # Pad the data if there is less than RMmax bytes left of plaintxt
             plaintext = pad(sizes + msg[index:], 480, style='iso7816')
             metadata.append(plaintext)
 
         else:
-            # Add 464 bytes of plaintext
-            metadata.append(sizes + msg[index:index + 464])
+            # Add RMmax bytes of plaintext
+            metadata.append(sizes + msg[index:index + RMmax])
 
-        index += 464
+        index += RMmax
     #----------------------ENCRYPTION----------------------------------
     with open("../secret_build_output.txt", "rb") as keyfile:
         key = keyfile.read(16)
@@ -97,7 +103,7 @@ def start_protect(size: int, version: int, message: str):
             iv, tag, ciphertext = i
             f.write(iv + tag + ciphertext)
 
-    return ceildiv(len(msg),464)
+    return ceildiv(len(msg),RMmax)
 
 
 def protect_body(frame_index: int, data: bytes):
@@ -125,17 +131,17 @@ def protect_body(frame_index: int, data: bytes):
         ### Creating plaintext
         # Adding frame type code
         plaintext = bytearray(0)
-        plaintext += b'\x01'
+        plaintext += p32(1, endian='little')
         # Adding firmware plaintext
-        if len(data) - index < (480 - len(plaintext)):
-            # Pad the data if there is less than 464 bytes left of plaintxt
+        if len(data) - index < DATAmax:
+            # Pad the data if there is less than DATAmax bytes left of plaintxt
             plaintext += data[index:]
-            plaintext = pad(plaintext, 480, style='iso7816')
+            plaintext = pad(plaintext, 480, style='iso7816')    
         else:
-            # Add 464 bytes of plaintext
-            plaintext += data[index:index + 464]
+            # Add DATAmax bytes of plaintext
+            plaintext += data[index:index + DATAmax]
 
-        index += 464
+        index += DATAmax
 
         # Encrypt the data
         cipher = AES.new(key, AES.MODE_GCM, nonce=iv, mac_len=16)

@@ -113,7 +113,7 @@ def unprotect_start(frames, key):#------------------------------------UNPROTECT 
 
 def unprotect_body(frames, key, index, size):
     complete_firmware = b''
-    for x in range(0, size // 464):
+    for x in range(0, size // 476):
         current = frames[index]
 
         # Same for all the frames
@@ -130,21 +130,21 @@ def unprotect_body(frames, key, index, size):
             print(e)
             return
 
-        mType = u8(plaintext[:1])
+        mType = u32(plaintext[:4])
         
         if mType != 1:
             print("Message type error. Supposed to be 1 but is", mType)
         else:
             print("Msg type: ", mType)
         
-        print("Firmware frame:", plaintext[1:])
+        print("Firmware frame:", plaintext[4:])
 
-        complete_firmware += plaintext[1:]
+        complete_firmware += plaintext[4:]
 
         index += 1
     
     # No padded chunk
-    if size % 464 == 0:
+    if size % 476 == 0:
         print(len(complete_firmware))
         return index
 
@@ -165,16 +165,16 @@ def unprotect_body(frames, key, index, size):
         print(e)
         return
 
-    mType = u8(plaintext[:1])
+    mType = u32(plaintext[:4])
     
     if mType != 1:
         print("Message type error. Supposed to be 1 but is", mType)
     else:
         print("Msg type: ", mType)
     
-    print("Firmware frame:", plaintext[1:])
+    print("Firmware frame:", plaintext[4:])
 
-    complete_firmware += plaintext[1:]
+    complete_firmware += plaintext[4:]
 
     index += 1
 
