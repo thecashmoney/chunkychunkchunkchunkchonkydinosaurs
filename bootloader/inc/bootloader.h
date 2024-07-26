@@ -8,9 +8,6 @@
 #include <stdint.h>
 #include <string.h>
 
-#define IV_LEN 16
-#define MAX_MSG_LEN 256
-
 // FLASH Constants
 #define FLASH_PAGESIZE 1024
 #define FLASH_WRITESIZE 4
@@ -20,14 +17,6 @@
 #define ERROR ((unsigned char)0x01)
 #define UPDATE ((unsigned char)'U')
 #define BOOT ((unsigned char)'B')
-
-// Data buffer sizes
-#define META_LEN 22 // Excludes message bytes
-#define IV_LEN 16
-#define MAX_MSG_LEN 256
-#define BLOCK_SIZE FLASH_PAGESIZE
-#define SIG_SIZE 256
-#define CHUNK_SIZE (BLOCK_SIZE + SIG_SIZE)
 
 // Frame constants
 #define IV_LEN 16
