@@ -7,6 +7,7 @@
 #include "../inc/secrets.h"
 #include "../lib/wolfssl/wolfssl/wolfcrypt/error-crypt.h"
 #include "../inc/secrets.h"
+#include "driverlib/uart.h"
 
 // Hardware Imports
 #include "inc/hw_memmap.h"    // Peripheral Base Addresses
@@ -51,9 +52,14 @@ void write_firmware(void *mem_addr, uint8_t plaintext);
 #define FRAME_MSG_LEN 464
 #define FRAME_BODY_LEN 476
 
+#define MAX_DECRYPTS 5
+
 // Protocol Constants
 #define OK ((unsigned char)0x00)
-#define ERROR ((unsigned char)0x01)
+#define INTEGRITY_ERROR ((unsigned char)0xFC)
+#define VERSION_ERROR ((unsigned char)0xFD)
+#define TYPE_ERROR ((unsigned char)0xFE)
+#define DEC_ERROR ((unsigned char)0xFF)
 #define UPDATE ((unsigned char)'U')
 #define BOOT ((unsigned char)'B')
 
@@ -212,7 +218,7 @@ uint32_t read_frame(generic_frame *frame)
  * Load the firmware into flash.
  */
 void load_firmware(void) {
-
+    uint32_t tries;
     /* -------------------------------- This code is for the first start frame -------------------------------- */
     // Actual variable for reading encrypted frames
     generic_frame frame_encrypted;
@@ -232,16 +238,20 @@ void load_firmware(void) {
     uint32_t frame_ind = 0;
     uint32_t *frame_index = &frame_ind;
 
-    // Decrypt the very first start frame
-    if (decrypt(frame_enc_ptr, frame_index, frame_dec_ptr->plaintext) != 0) {
-        uart_write(UART0, ERROR);
-        return; //return likely not needed.
+    for (tries = 1; tries <= MAX_DECRYPTS; tries++) {
+        // Decrypt the very first start frame
+        if (decrypt(frame_enc_ptr, frame_index, frame_dec_ptr->plaintext) != 0) {
+            uart_write(UART0, INTEGRITY_ERROR);
+            uart_write(UART0, read_frame(frame_enc_ptr));
+        }
+    } if (tries == MAX_DECRYPTS) {
+        uart_write(UART0, DEC_ERROR);
     }
 
     // If the first frame is not 0, there is an error
     if (frame_dec_ptr->type != 0) 
     {
-        uart_write(UART0, ERROR);
+        uart_write(UART0, TYPE_ERROR);
         return; //probably don't need the return value?
     }
 
@@ -252,8 +262,8 @@ void load_firmware(void) {
 
     // Making sure the old version isn't smaller than the current version
     // +casted to uint32 to make the data types uniform.
-    uint32_t old_version = (uint32_t)*fw_version_address;
-    uint32_t old_size = (uint32_t)*fw_size_address;
+    uint32_t old_version = (uint32_t) *fw_version_address;
+    uint32_t old_size = (uint32_t) *fw_size_address;
     
     if (old_version == 0xFFFF) {
         // Version not set
@@ -263,14 +273,16 @@ void load_firmware(void) {
             *fw_version_address = version;
             *fw_size_address = fw_size;
         } else {
-            uart_write(UART0, ERROR);
+            uart_write(UART0, VERSION_ERROR);
+            while(UARTBusy(UART0_BASE)) {/*no*/}
             SysCtlReset();
             return;
         }
     } else if (version < old_version & version != 0) {
         // Attempted rollback
         // version 0 allowed to be loaded
-        uart_write(UART0, ERROR);
+        uart_write(UART0, VERSION_ERROR);
+        while(UARTBusy(UART0_BASE)){}
         SysCtlReset();
         return;
     } else {
@@ -281,6 +293,9 @@ void load_firmware(void) {
         *fw_size_address = (uint16_t) fw_size;
         //able to be casted without bit shift operations because the first 8 bits of the number will always be all 0s
     }
+
+    //writing message type back to fw update test for testing purposes (please remove later)
+    uart_write(UART0, (uint8_t) 0);
 
     
     /* -------------------------------- This code is for the next start frames -------------------------------- */
@@ -300,17 +315,24 @@ void load_firmware(void) {
             // Read in the next frame + write success/fail message to fw update
             uart_write(UART0, read_frame(frame_enc_ptr));
 
+            //writing message type back to fw update test for testing purposes (please remove later)
+            uart_write(UART0, (uint8_t) 0);
             
             // Decrypt the frame
-            if (decrypt(frame_enc_ptr, frame_index, frame_dec_ptr->plaintext) != 0) {
-                uart_write(UART0, ERROR);
-                return;
+            for (tries = 1; tries <= MAX_DECRYPTS; tries++) {
+                // Decrypt the very first start frame
+                if (decrypt(frame_enc_ptr, frame_index, frame_dec_ptr->plaintext) != 0) {
+                    uart_write(UART0, INTEGRITY_ERROR);
+                    uart_write(UART0, read_frame(frame_enc_ptr));
+                }
+            } if (tries == MAX_DECRYPTS) {
+                uart_write(UART0, DEC_ERROR);
             }
 
             // If the frame is not a start frame, there is an error
             if (frame_dec_ptr->type != 0) 
             {
-                uart_write(UART0, ERROR);
+                uart_write(UART0, TYPE_ERROR);
                 return;
             }
 
@@ -338,6 +360,9 @@ void load_firmware(void) {
     } 
     else if (msg_size == FRAME_MSG_LEN) 
     {
+        //writing message type back to fw update test for testing purposes (please remove later)
+        uart_write(UART0, (uint8_t) 0);
+
         // Write the first frame to the python script
         // uart_write_str(UART0, frame_dec_start_ptr->msg);
         
@@ -346,6 +371,9 @@ void load_firmware(void) {
         }
     } 
     else {
+        //writing message type back to fw update test for testing purposes (please remove later)
+        uart_write(UART0, (uint8_t) 0);
+
         // Print out message, but unpadded
         uint32_t index = unpad(frame_dec_start_ptr->msg, FRAME_MSG_LEN);
 
@@ -362,19 +390,28 @@ void load_firmware(void) {
     /* -------------------------------- This code if for the firmware body frames -------------------------------- */
     // Iterate through body frames
     uint32_t num_frames = fw_size % FRAME_BODY_LEN == 0 ? (uint32_t) (fw_size / FRAME_BODY_LEN): (uint32_t) (fw_size / FRAME_BODY_LEN) + 1;
+
     for (int i = 0; i < num_frames; i++) {
         // Read in the next frame and write a success/fail message to fw update
         uart_write(UART0, read_frame(frame_enc_ptr));
 
+        //writing message type back to fw update test for testing purposes (please remove later)
+        uart_write(UART0, (uint8_t) 1);
+
         // Decrypt the frame, 
-        if (decrypt(frame_enc_ptr, frame_index, frame_dec_ptr->plaintext) != 0) {
-            uart_write(UART0, ERROR);
-            return;
+        for (tries = 1; tries <= MAX_DECRYPTS; tries++) {
+                // Decrypt the very first start frame
+                if (decrypt(frame_enc_ptr, frame_index, frame_dec_ptr->plaintext) != 0) {
+                    uart_write(UART0, INTEGRITY_ERROR);
+                    uart_write(UART0, read_frame(frame_enc_ptr));
+                }
+            } if (tries == MAX_DECRYPTS) {
+                uart_write(UART0, DEC_ERROR);
         }
         
         // If the frame is not a body frame, there is an error
         if (frame_dec_ptr->type != 1) {
-            uart_write(UART0, ERROR);
+            uart_write(UART0, TYPE_ERROR);
             return;
         }
 
@@ -394,17 +431,26 @@ void load_firmware(void) {
     /* -------------------------------- This code is for the end frame -------------------------------- */
     // Read in the next frame
     uart_write(UART0, read_frame(frame_enc_ptr));
+
     // Decrypt the frame
-    if (decrypt(frame_enc_ptr, frame_index, frame_dec_ptr->plaintext) != 0) {
-        uart_write(UART0, ERROR);
-        return;
-    }
+    for (tries = 1; tries <= MAX_DECRYPTS; tries++) {
+            // Decrypt the very first start frame
+            if (decrypt(frame_enc_ptr, frame_index, frame_dec_ptr->plaintext) != 0) {
+                uart_write(UART0, INTEGRITY_ERROR);
+                uart_write(UART0, read_frame(frame_enc_ptr));
+            }
+        } if (tries == MAX_DECRYPTS) {
+                uart_write(UART0, DEC_ERROR);
+        }
 
     // If the first frame is not 2, there is an error
     if (frame_dec_end_ptr->type != 2) {
-        uart_write(UART0, ERROR);
+        uart_write(UART0, TYPE_ERROR);
         return;
     }
+    
+    //writing message type back to fw update test for testing purposes (please remove later)
+    uart_write(UART0, (uint8_t) 2);
 
     
 
@@ -569,6 +615,7 @@ void boot_firmware(void) {
 
     if (!fw_present) {
         uart_write_str(UART0, "No firmware loaded.\n");
+        while(UARTBusy(UART0_BASE)){}
         SysCtlReset();            // Reset device
         return;
     }
@@ -614,7 +661,19 @@ int decrypt(generic_frame *frame, uint16_t *frame_num, uint8_t *plaintext) {
     Aes aes;
     wc_AesGcmSetKey(&aes, key, 16); // Set the key
 
-    uint8_t authIn[2] = {*frame_num >> 8, *frame_num & 0xFF};
+
+    // 0x99991111
+    // 0x9999
+    // 0x1111
+    // uint8_t authIn[2] = {
+    //     (uint8_t) *frame_num >> 8, 
+    //     (uint8_t) *frame_num & 0xFF
+    // };
+
+    // uint8_t authIn[2] = {
+    //     (uint8_t) *frame_num & 0xFF,
+    //     (uint8_t) *frame_num >> 8
+    // };
 
     // Decrypt the frame
     int result = wc_AesGcmDecrypt(
@@ -626,8 +685,8 @@ int decrypt(generic_frame *frame, uint16_t *frame_num, uint8_t *plaintext) {
         sizeof(frame->IV), // IV length
         frame->tag, // Tag
         sizeof(frame->tag), // Tag length
-        authIn, // Header
-        sizeof(authIn) // Header length
+        frame_num, // Header
+        sizeof(frame_num) // Header length
     );
 
     return result;

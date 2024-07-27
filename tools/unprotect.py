@@ -179,7 +179,7 @@ def unprotect_body(frames, key, index, size):
     index += 1
 
     # Returning the length of the complete firmware
-    print("Length of firmare according to file:", size, "\nLength of firmware according to us:", len(complete_firmware))
+    print("Length of firmware according to file:", size, "\nLength of firmware according to us:", len(complete_firmware))
     
     return index
 
