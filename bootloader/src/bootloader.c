@@ -62,6 +62,8 @@ uint16_t * fw_version_address = (uint16_t *)METADATA_BASE;
 uint16_t * fw_size_address = (uint16_t *)(METADATA_BASE + 2);
 uint8_t * fw_release_message_address;
 
+uint8_t *key = AESKEY;
+
 // Firmware Buffer
 unsigned char data[FLASH_PAGESIZE];
 
@@ -165,7 +167,7 @@ void receive_ciphertext(uint8_t *ciphertext)
 // Unpads the plaintext and stores it in plaintext
 int unpad(uint8_t* plaintext, uint32_t plaintext_length) 
 {
-    int index;
+    int index = 0;
     for(int i = plaintext_length; i >= 0; i--) 
     {
         if(plaintext[i] == 0x80) 
@@ -211,138 +213,160 @@ uint32_t read_frame(generic_frame *frame)
  */
 void load_firmware(void) {
 
-    /* -------------------------------- This code if for the frist start frame -------------------------------- */
+    /* -------------------------------- This code is for the first start frame -------------------------------- */
     // Actual variable for reading encrypted frames
     generic_frame frame_encrypted;
-    generic_frame *frame_enc_ptr = &frame_encrypted;
+    generic_frame *frame_enc_ptr = &frame_encrypted; // pointer to encrypted frame
 
     // Actual variable for storing decrypting frames
     generic_decrypted_frame frame_decrypted;
-    generic_decrypted_frame *frame_dec_ptr = &frame_decrypted;
+    generic_decrypted_frame *frame_dec_ptr = &frame_decrypted; //pointer to decrypted frame
 
     // References to frame_decrypted, but can be read as if they were frame_dec_body / frame_dec_start
-    pltxt_body_frame *frame_dec_body = (pltxt_body_frame *) frame_dec_ptr;
-    pltxt_start_frame *frame_dec_start = (pltxt_start_frame *) frame_dec_ptr;
-    pltxt_end_frame *frame_dec_end = (pltxt_end_frame *) frame_dec_ptr;
+    pltxt_body_frame *frame_dec_body_ptr = (pltxt_body_frame *) frame_dec_ptr;
+    pltxt_start_frame *frame_dec_start_ptr = (pltxt_start_frame *) frame_dec_ptr;
+    pltxt_end_frame *frame_dec_end_ptr = (pltxt_end_frame *) frame_dec_ptr;
 
     uart_write(UART0, read_frame(frame_enc_ptr));
 
     uint32_t frame_ind = 0;
     uint32_t *frame_index = &frame_ind;
+
     // Decrypt the very first start frame
     if (decrypt(frame_enc_ptr, frame_index, frame_dec_ptr->plaintext) != 0) {
         uart_write(UART0, ERROR);
-        return;
+        return; //return likely not needed.
     }
 
     // If the first frame is not 0, there is an error
     if (frame_dec_ptr->type != 0) 
     {
         uart_write(UART0, ERROR);
-        return;
+        return; //probably don't need the return value?
     }
 
     // Saving the metadata
-    uint32_t version = frame_dec_start->version_num;
-    uint32_t fw_size = frame_dec_start->total_size;
-    uint32_t msg_size = frame_dec_start->msg_size;
+    uint32_t version = frame_dec_start_ptr->version_num;
+    uint32_t fw_size = frame_dec_start_ptr->total_size;
+    uint32_t msg_size = frame_dec_start_ptr->msg_size;
 
     // Making sure the old version isn't smaller than the current version
-    uint16_t old_version = *fw_version_address;
-    uint16_t old_size = *fw_size_address;
+    // +casted to uint32 to make the data types uniform.
+    uint32_t old_version = (uint32_t)*fw_version_address;
+    uint32_t old_size = (uint32_t)*fw_size_address;
     
     if (old_version == 0xFFFF) {
         // Version not set
-        old_version = version;
-        old_size = fw_size;
-    } else if (version < old_version) {
+        // why would version number automatically be set to 0xFFFF
+        if(version == 1) {
+            //initial configuration
+            *fw_version_address = version;
+            *fw_size_address = fw_size;
+        } else {
+            uart_write(UART0, ERROR);
+            SysCtlReset();
+            return;
+        }
+    } else if (version < old_version & version != 0) {
         // Attempted rollback
+        // version 0 allowed to be loaded
         uart_write(UART0, ERROR);
         SysCtlReset();
         return;
     } else {
         // Update version
-        old_version = version;
-        old_size = fw_size;
+
+        //updated code: changing the value of version and size at the memory address referenced by fw_version_address and fw_size_address
+        *fw_version_address = (uint16_t) version;
+        *fw_size_address = (uint16_t) fw_size;
+        //able to be casted without bit shift operations because the first 8 bits of the number will always be all 0s
     }
 
-    /* -------------------------------- This code if for the next start frames -------------------------------- */
+    
+    /* -------------------------------- This code is for the next start frames -------------------------------- */
 
     if (msg_size > FRAME_MSG_LEN) {
-        // Write the first frame to the python script
-        uart_write_str(UART0, frame_dec_start->msg);
+        for(uint32_t i = 0; i < FRAME_MSG_LEN; i++) {
+            uart_write(UART0, (uint8_t)frame_dec_start_ptr->msg[i]);
+        }
+        // Write the first frame to the CAR-SERIAL script (not needed right now)
+        // uart_write_str(UART0, frame_dec_start_ptr->msg);
 
-        // Iterate through start frames
-        uint32_t num_frames = msg_size % FRAME_MSG_LEN == 0 ? (uint_fast32_t) (msg_size / FRAME_MSG_LEN): (uint32_t) (msg_size / FRAME_MSG_LEN) + 1;
+        // Numframes is the total number of start frames
+        uint32_t num_frames = msg_size % FRAME_MSG_LEN == 0 ? (uint32_t) (msg_size / FRAME_MSG_LEN) : (uint32_t) (msg_size / FRAME_MSG_LEN) + 1;
+        
         for (uint32_t i = 1; i < num_frames; i++) 
         {
-            // Read in the next frame
+            // Read in the next frame + write success/fail message to fw update
             uart_write(UART0, read_frame(frame_enc_ptr));
 
+            
             // Decrypt the frame
             if (decrypt(frame_enc_ptr, frame_index, frame_dec_ptr->plaintext) != 0) {
                 uart_write(UART0, ERROR);
                 return;
             }
 
-            // If the frame is not a body frame, there is an error
+            // If the frame is not a start frame, there is an error
             if (frame_dec_ptr->type != 0) 
             {
                 uart_write(UART0, ERROR);
                 return;
             }
 
-            // Write the decrypted frame to the flash
+            // If the frame is the last of the start frames, it's padded
             if (i == num_frames - 1) {
                 // Print out message, but unpadded
-                uint32_t index = unpad(frame_dec_start->msg, FRAME_MSG_LEN);
-                frame_dec_start->msg[index] = '\0';
+                uint32_t index = unpad(frame_dec_start_ptr->msg, FRAME_MSG_LEN);
+                // Ending the start message string at the place where the padding starts using a null byte
+                frame_dec_start_ptr->msg[index] = '\0';
+                
+                // Printing unpadded frame
+                for(uint32_t i = 0; i < index; i++) {
+                    uart_write(UART0, (uint8_t)frame_dec_start_ptr->msg[i]);
+                }
+            } else {
+                // Print out the message
+                for(uint32_t i = 0; i < FRAME_MSG_LEN; i++) {
+                    uart_write(UART0, (uint8_t)frame_dec_start_ptr->msg[i]);
+                }
             }
-            uart_write_str(UART0, frame_dec_start->msg);
+
+          //  uart_write_str(UART0, frame_dec_start_ptr->msg);
         }
         return;
     } 
     else if (msg_size == FRAME_MSG_LEN) 
     {
         // Write the first frame to the python script
-        uart_write_str(UART0, frame_dec_start->msg);
+        // uart_write_str(UART0, frame_dec_start_ptr->msg);
+        
+        for(uint32_t i = 0; i < FRAME_MSG_LEN; i++) {
+            uart_write(UART0, (uint8_t)frame_dec_start_ptr->msg[i]);
+        }
     } 
-    else if (msg_size < FRAME_MSG_LEN) 
-    {
+    else {
         // Print out message, but unpadded
-        uint32_t index = unpad(frame_dec_start->msg, FRAME_MSG_LEN);
-        frame_dec_start->msg[index] = '\0';
-        uart_write_str(UART0, frame_dec_start->msg);
-    }
+        uint32_t index = unpad(frame_dec_start_ptr->msg, FRAME_MSG_LEN);
 
-    for (uint32_t i = 1; i < fw_size; i++) {
-        // Read in the next frame
-        uart_write(UART0, read_frame(frame_enc_ptr));
+        // Ending update string using a null byte
+        frame_dec_start_ptr->msg[index] = '\0';
+        // uart_write_str(UART0, frame_dec_start_ptr->msg);
 
-        // Decrypt the frame
-        if (decrypt(frame_enc_ptr, frame_index, frame_dec_ptr->plaintext) != 0) {
-            uart_write(UART0, ERROR);
-            return;
+        // Writing unpadded string back to python
+        for(uint32_t i = 0; i < index; i++) {
+            uart_write(UART0, (uint8_t)frame_dec_start_ptr->msg[i]);
         }
-
-        // If the frame is not a body frame, there is an error
-        if (frame_dec_ptr->type != 1) {
-            uart_write(UART0, ERROR);
-            return;
-        }
-
-        // Write the decrypted frame to the flash
-        uart_write_str(UART0, frame_dec_start->msg);
     }
 
     /* -------------------------------- This code if for the firmware body frames -------------------------------- */
     // Iterate through body frames
-    uint32_t num_frames = fw_size % FRAME_BODY_LEN == 0 ? (uint_fast32_t) (fw_size / FRAME_BODY_LEN): (uint32_t) (fw_size / FRAME_BODY_LEN) + 1;
+    uint32_t num_frames = fw_size % FRAME_BODY_LEN == 0 ? (uint32_t) (fw_size / FRAME_BODY_LEN): (uint32_t) (fw_size / FRAME_BODY_LEN) + 1;
     for (int i = 0; i < num_frames; i++) {
-        // Read in the next frame
+        // Read in the next frame and write a success/fail message to fw update
         uart_write(UART0, read_frame(frame_enc_ptr));
 
-        // Decrypt the frame
+        // Decrypt the frame, 
         if (decrypt(frame_enc_ptr, frame_index, frame_dec_ptr->plaintext) != 0) {
             uart_write(UART0, ERROR);
             return;
@@ -354,13 +378,16 @@ void load_firmware(void) {
             return;
         }
 
-        // Write the decrypted frame to the flash
+        // Write the decrypted frame to the flash (add function here)
         if (i == num_frames - 1) {
             // Print out message, but unpadded
-            uint32_t index = unpad(frame_dec_body->plaintext, FRAME_BODY_LEN);
-            frame_dec_body->plaintext[index] = '\0';
+            uint32_t index = unpad(frame_dec_body_ptr->plaintext, FRAME_BODY_LEN);
+            frame_dec_body_ptr->plaintext[index] = '\0';
         } else {
-            uart_write_str(UART0, frame_dec_body->plaintext);
+           // uart_write_str(UART0, frame_dec_body_ptr->plaintext);
+            for(uint32_t i = 0; i < FRAME_BODY_LEN; i++) {
+                uart_write(UART0, (uint8_t)frame_dec_body_ptr->plaintext[i]);
+            }
         }
     }
     
@@ -374,7 +401,7 @@ void load_firmware(void) {
     }
 
     // If the first frame is not 2, there is an error
-    if (frame_dec_ptr->type != 2) {
+    if (frame_dec_end_ptr->type != 2) {
         uart_write(UART0, ERROR);
         return;
     }
@@ -468,11 +495,11 @@ void load_firmware(void) {
 
 
 // Erase a given number of pages starting from the page address
-bool erase_page(void *page_addr, uint32_t num_pages)
+bool erase_pages(void *page_addr, uint32_t num_pages)
 {
     for (uint32_t i = 0; i < num_pages; i++) 
     {
-        uint32_t page_address = &page_addr + (i * FLASH_PAGESIZE);
+        uint32_t page_address = (uint32_t) &page_addr + (i * FLASH_PAGESIZE);
         if (FlashErase(page_address) != 0) 
         {
             return -1;  // Failure
@@ -585,7 +612,7 @@ int decrypt(generic_frame *frame, uint16_t *frame_num, uint8_t *plaintext) {
     // Decrypt the frame
     // Create a new AES context
     Aes aes;
-    wc_AesGcmSetKey(&aes, AESKEY, 16); // Set the key
+    wc_AesGcmSetKey(&aes, key, 16); // Set the key
 
     uint8_t authIn[2] = {*frame_num >> 8, *frame_num & 0xFF};
 
@@ -603,9 +630,5 @@ int decrypt(generic_frame *frame, uint16_t *frame_num, uint8_t *plaintext) {
         sizeof(authIn) // Header length
     );
 
-    // Verify the tag
-    if (result != 0) 
-        return AES_GCM_AUTH_E;
-    
-    return 0;
+    return result;
 }

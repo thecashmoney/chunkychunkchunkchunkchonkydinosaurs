@@ -129,7 +129,7 @@ def send_frame(ser, data, debug=False):
     # print("Length: ", len(ct))
 
 
-def main(infile):
+def main():
     # declare the variables as global
     '''global FRAME_SIZE
     global NUM_FRAMES
@@ -138,8 +138,8 @@ def main(infile):
 
     #send_IV_and_tag(ser)
     #send_ciphertext(ser, "tester.bin")
-    calc_num_frames(infile)
-    f = open(infile, "rb")
+    calc_num_frames("firmware.bin")
+    f = open("firmware.bin", "rb")
     data = f.read()
     wait_for_update()
 
@@ -151,7 +151,9 @@ def main(infile):
 
 
 def test_reader():
+    pass
     
 if __name__ == "__main__":
-    parser.add_argument("--firmware", help="Path to firmware image to load.", required=True)
-    main(infile=args.firmware)
+    # parser = argparse.ArgumentParser(description="Firmware Update Tool")
+    # parser.add_argument("--firmware", help="Path to firmware image to load.", required=True)
+    main()
