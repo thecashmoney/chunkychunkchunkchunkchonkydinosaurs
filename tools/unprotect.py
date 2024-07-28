@@ -28,12 +28,11 @@ def main():
         key = keyfile.read(16)
 
     size, index = unprotect_start(frames, key)
+    for i in frames[index:]:
+        print(i)
+    
     index = unprotect_body(frames, key, index, size)
     unprotect_end(frames, key, index)
-
-
-
-
 
 
 
