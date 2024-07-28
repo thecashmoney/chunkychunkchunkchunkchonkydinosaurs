@@ -249,7 +249,7 @@ void load_firmware(void) {
     }
 
     // If the first frame is not 0, there is an error
-    if (frame_dec_ptr->type != 0) 
+    if (frame_dec_start_ptr->type != 0) 
     {
         uart_write(UART0, TYPE_ERROR);
         return; //probably don't need the return value?
@@ -330,7 +330,7 @@ void load_firmware(void) {
             }
 
             // If the frame is not a start frame, there is an error
-            if (frame_dec_ptr->type != 0) 
+            if (frame_dec_start_ptr->type != 0) 
             {
                 uart_write(UART0, TYPE_ERROR);
                 return;
@@ -410,7 +410,7 @@ void load_firmware(void) {
         }
         
         // If the frame is not a body frame, there is an error
-        if (frame_dec_ptr->type != 1) {
+        if (frame_dec_body_ptr->type != 1) {
             uart_write(UART0, TYPE_ERROR);
             return;
         }
