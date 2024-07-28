@@ -33,9 +33,10 @@ def wait_for_update():
     no =  ser.read(1).decode()
     while no != "U":
         print(f"byte: {ctr}")
+        print("One of the initial bytes:", no)
         ctr += 1
         no = ser.read(1).decode()
-    print(no)
+    #print(no)
 
 def calc_num_frames(file):
     if len(file) % FRAME_SIZE == 0:
@@ -60,7 +61,7 @@ def send_frame(ser, data, debug=False):
     ser.write(frame)  # Write the frame...
     print('waiting for a response (in send_frame)')
     resp = ser.read(1)  # Wait for an OK from the bootloader
-    #print("Reponse from bootloader:", resp)
+    print("Reponse from bootloader:", resp)
 
     return resp
 

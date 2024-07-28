@@ -122,7 +122,7 @@ int main(void) {
         uint32_t instruction = uart_read(UART0, BLOCKING, &resp);
 
         if (instruction == UPDATE) {
-            uart_write_str(UART0, "U");
+            uart_write(UART0, "U");
             load_firmware();
             // uart_write_str(UART0, "Loaded new firmware.\n");
             nl(UART0);

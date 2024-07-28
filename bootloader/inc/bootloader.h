@@ -24,11 +24,7 @@
 #define FRAME_MSG_LEN 464
 #define FRAME_BODY_LEN 476
 #define PLAINTEXT_MINUS_TAG 476
-<<<<<<< HEAD
 #define PLAINTEXT_SIZE 480
-=======
-#define PLAINTEXT_LEN 480
->>>>>>> 10309a3ff409fd9241c9429cffae31d6d35c76cd
 
 #define MAX_CHUNK_NO 32 // 30KB firmware + padding
 
@@ -67,11 +63,8 @@ typedef struct generic_frame {
 typedef struct generic_decrypted_frame {
     uint8_t             IV[16];
     uint8_t             tag[16];
-<<<<<<< HEAD
     uint8_t             plaintext[PLAINTEXT_SIZE];
-=======
-    uint8_t             plaintext[PLAINTEXT_LEN];
->>>>>>> 10309a3ff409fd9241c9429cffae31d6d35c76cd
+
 } generic_decrypted_frame;
 
 typedef struct pltxt_end_frame {
