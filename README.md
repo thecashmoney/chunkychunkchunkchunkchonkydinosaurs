@@ -67,11 +67,14 @@ There are three python scripts in the `tools` directory which are used to:
 
 ### bl_build.py
 
-This script calls `make` in the `bootloader` directory.
+This script generates a random 16-byte value and writes it to secrets.h as a formatted byte string.
+It also writes the raw 16-byte value to secret-output.txt.
+It then calls `make` in the `bootloader` directory.
 
 ### fw_protect.py
 
 This script bundles the version and release message with the firmware binary.
+It then encrypts each message chunk (start, data, end).
 
 ### fw_update.py
 
