@@ -15,10 +15,12 @@ ser = serial.Serial("/dev/ttyACM0", 115200)
 RESP_OK = b"\x03"
 RESP_DEC_OK = b"\x05"
 RESP_RESEND = b"\xfc"
-RESP_DEC_ERR = b"\xff"
+RESP_DEC_ERR = b"\x06"
 FRAME_SIZE = 512
 NUM_FRAMES = 1
 FRAMES_SENT = 0
+VERSION_ERROR = b'\xfd'
+TYPE_ERROR  = b'\xfe'
 
 #constants from bootloader.h
 IV_LEN = 16
@@ -64,7 +66,6 @@ def send_frame(ser, data, debug=False):
     # print("ctext: ", ciphertext)
 
     frame = IV + tag + ciphertext
-    print("The frame length is: ", len(frame))
 
     ser.write(frame)  # Write the frame...
     print('waiting for a response to sending the frame (in send_frame)')
@@ -78,6 +79,7 @@ def read_byte():
     byte = ser.read(1)
     while byte == b'\x00':
         byte = ser.read(1)
+        print("null byte >:(")
     return byte
     #cringe
 
@@ -129,13 +131,19 @@ def main():
         # reading message type
         message_type = read_byte()
         print("Message type: ", message_type)
-        
+        if message_type == VERSION_ERROR:
+            print("Go kill yourself")
+            return
+        elif message_type == TYPE_ERROR:
+            print("Type error")
+            return
 
         msg_str = b""
+        body_str = b''
         if message_type == MSG_START:
-            msg_len = u8(ser.read(1), endian="little")
-            # print("Message len:", msg_len)
-            # print("Calculation factor:", frames_sent * FRAME_MSG_LEN)
+            msg_len = u32(ser.read(4), endian="little")
+            print("Message len:", msg_len)
+            print("Calculation factor:", frames_sent * FRAME_MSG_LEN)
             if msg_len > frames_sent * FRAME_MSG_LEN:
                 for _ in range(FRAME_MSG_LEN):
                     msg_str += ser.read(1)
@@ -144,13 +152,17 @@ def main():
                     msg_str += ser.read(1)
             print("Release message:", msg_str)
         if message_type == MSG_BODY:
-            body_data = ser.read(FRAME_BODY_LEN)
-            print("BODY FRAME DATA: ", body_data)
+            body_len = u32(ser.read(4), endian="little")
+            if body_len > frames_sent * FRAME_MSG_LEN:
+                for _ in range(FRAME_MSG_LEN):
+                    msg_str += ser.read(1)
+            else:
+                for _ in range((msg_len % FRAME_MSG_LEN)):
+                    msg_str += ser.read(1)
+            print("Firmware:", msg_str)
         elif message_type == MSG_END:
             end = ser.read(1)
             print("END MESSAGE TYPE LOL: ", end)
-        else:
-            print("Message type:", message_type)
 
         # print(ser.read(1))
         # print(message_type)

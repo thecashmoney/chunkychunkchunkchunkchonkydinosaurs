@@ -4,4 +4,4 @@ def release_message_gen(n):
 
 #MAIN BOILERPLATE RAHHHHHHH
 if __name__ == "__main__":
-   release_message_gen(464)
+   release_message_gen(800)
