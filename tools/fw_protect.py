@@ -112,8 +112,8 @@ def start_protect(size: int, version: int, message: str):
 
 
     # -------------------------------- ENCRYPTION -------------------------------- #
-    with open("../secret_build_output.txt", "rb") as keyfile:
-        key = keyfile.read(16)
+    with open("../secret_build_output.txt", "r") as keyfile:
+        key = [ord(c) for c in keyfile.read(16)]
     outputMsg = []
 
     j = 0
@@ -157,8 +157,8 @@ def protect_body(frame_index: int, data: bytes):
     body = bytearray(0)
 
     # Reads the file containing the AES-GCM key
-    with open("../secret_build_output.txt", "rb") as keyfile:
-        key = keyfile.read(16)
+    with open("../secret_build_output.txt", "r") as keyfile:
+        key = [ord(c) for c in keyfile.read(16)]
 
     index = 0
     
@@ -222,8 +222,8 @@ def protect_end(frame_index):
     """
     
     # Opens the AES-GCM key
-    with open("../secret_build_output.txt", "rb") as keyfile:
-        key = keyfile.read(16)
+    with open("../secret_build_output.txt", "r") as keyfile:
+        key = [ord(c) for c in keyfile.read(16)]
 
     # Encrypting the end frame and padding it
     data = pad(p8(2, endian='little'), 480, style='iso7816')
