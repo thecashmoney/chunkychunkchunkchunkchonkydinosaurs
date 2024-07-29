@@ -8,10 +8,27 @@ Firmware Bundle-and-Protect Tool
 
 7/22/24 - Elliott Jang and Oliver Beresford
 Part 1: Start message encryption
-- start_protect(startMsg, outputMsg, version, message)
-Part 2: Data message encryption: Split into chonks first and then encrypt each chonk
-Part 3: End message encryption
+- start_protect(size (int), version (int), message(str))
+- Finds length of message, and calculates number of frames required
+- Adds in required data headers (look at function for more info)
+- Add in release message in increments of 464 bytes
+- Encrypt whole chonk, using a frame number as the AAD
+- Write every chonk to protected_output.bin
+- Return frame number that next part should start off of
 
+Part 2: Data message encryption: 
+- Read over GCM key, index
+- Split into chonks first and then encrypt each chonk
+- Each data is 476 bytes
+- 4 bytes of message code
+- Continue to use frame counter for AAD
+- Return next frame number
+
+Part 3: End message encryption
+- Read and stores the AES-GCM key
+- Pads the end frame with ISO-7816
+- Encrypts the end frame
+- Writes the ciphertext to protected_output
 """
 
 import argparse
@@ -24,27 +41,36 @@ from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 
 
-RMmax = 464
-DATAmax = 476
+# Setting constants for easy packet redesign
+RMmax = 464  # Release msg maximum size
+DATAmax = 476  # Data msg maximum size
 
 
+# Defines a function for ceiling division (always round up)
 def ceildiv(a, b):
     return -(a // -b)
 
+# This is the "main" function
 def protect_firmware(infile, version, message):
 
     # Load firmware binary from infile
     with open(infile, "rb") as fp:
         firmware = fp.read()
+    # calls start_protect to protect the start message frames
     index = start_protect(len(firmware), version, message)
+    
+    # calls protect_body to protect the data message frames
     index = protect_body(index, firmware)
-    print("Number of frames:", protect_end(index) + 1)
+
+    # calls protect_end to protect the end message frames
+    protect_end(index)
+    #print("Number of frames:", protect_end(index) + 1)
 
 
+# Protects the start message
 def start_protect(size: int, version: int, message: str):
     """
     Start message creation and encryption
-    its just bytes that we put at the beginning of fw_protected
     
     First 4 byte: type (0x04)
     Next 4 bytes: version number
@@ -53,19 +79,24 @@ def start_protect(size: int, version: int, message: str):
     Next 464 bytes: Release message
 
     for last frame:
-    last 463 bytes: 
+    ...
+    last 463 bytes: Release message
+    Padded with ISO-7816
     """
 
-
+    # Turns message into a bytearray and stores it in msgn
     msg = bytearray(message.encode('utf-8'))
 
-    metadata = []
-    rmsize = len(msg)
+
+    metadata = []  # stores start_message metadata
+    rmsize = len(msg)  # stores the release msg size
+
+    # msg type, version number, data size, release msg size
     sizes = p32(0, endian='little') + p32(version, endian='little') + p32(size, endian='little') + p32(rmsize, endian='little')
     
     index = 0
 
-    #-----------------------------------------WRITE MESSAGE INTO METADATA
+    # -------------------------------- WRITE MESSAGE INTO METADATA -------------------------------- #
     while index < len(msg):
         if (len(msg) - index) < RMmax:
             # Pad the data if there is less than RMmax bytes left of plaintxt
@@ -77,7 +108,10 @@ def start_protect(size: int, version: int, message: str):
             metadata.append(sizes + msg[index:index + RMmax])
 
         index += RMmax
-    #----------------------ENCRYPTION----------------------------------
+    # -------------------------------- END -------------------------------- #
+
+
+    # -------------------------------- ENCRYPTION -------------------------------- #
     with open("../secret_build_output.txt", "rb") as keyfile:
         key = keyfile.read(16)
     outputMsg = []
@@ -95,31 +129,40 @@ def start_protect(size: int, version: int, message: str):
         ciphertext, tag = cipher.encrypt_and_digest(data)
         iv = cipher.nonce
         outputMsg.append((iv,tag,ciphertext))
-        j = j + 1
+        j = j + 1\
+    # -------------------------------- END -------------------------------- #
+
     
-    #--------------------------------------------Write ciphertext to protected_output
+    # -------------------------------- WRITE CIPHERTEXT TO protected_output -------------------------------- #
     with open("protected_output.bin", "wb") as f:
         for i in outputMsg:
             iv, tag, ciphertext = i
             f.write(iv + tag + ciphertext)
 
     return ceildiv(len(msg),RMmax)
+    # -------------------------------- END -------------------------------- #
 
 
+# Protects the data msg frames 
 def protect_body(frame_index: int, data: bytes):
     """
-    Protects 32 bytes of data by encrypting it with AES-GCM using a key and AAD from a file.
-
-    Returns: a frame containing the frame type, IV, encrypted data, tag, and padding
+    Body message creation and encryption
+    
+    First 4 byte: type (0x04)
+    Next 476 bytes: Data
+    Padded with ISO-7816
     """
 
     # This is to hold all the frames
     body = bytearray(0)
 
+    # Reads the file containing the AES-GCM key
     with open("../secret_build_output.txt", "rb") as keyfile:
         key = keyfile.read(16)
 
     index = 0
+    
+    # This while loop encrypts each 32 byte chunk of data
     while index < len(data):
         # Create the frame buffer
         frame = bytearray(512)
@@ -132,6 +175,7 @@ def protect_body(frame_index: int, data: bytes):
         # Adding frame type code
         plaintext = bytearray(0)
         plaintext += p32(1, endian='little')
+
         # Adding firmware plaintext
         if len(data) - index < DATAmax:
             # Pad the data if there is less than DATAmax bytes left of plaintxt
@@ -167,7 +211,17 @@ def protect_body(frame_index: int, data: bytes):
     # Return the entire protected firmware
     return frame_index
 
+
+# Protects the end_msg frames
 def protect_end(frame_index):
+    """
+    End message creation and encryption
+    
+    First 4 byte: type (0x04)
+    Padded with ISO-7816
+    """
+    
+    # Opens the AES-GCM key
     with open("../secret_build_output.txt", "rb") as keyfile:
         key = keyfile.read(16)
 
@@ -176,23 +230,27 @@ def protect_end(frame_index):
     cipher = AES.new(key, AES.MODE_GCM)
     cipher.update(p16(frame_index))
 
-    #--------------------------------------------encrypt data
+    # -------------------------------- ENCRYPT DATA -------------------------------- #
     ciphertext, tag = cipher.encrypt_and_digest(data)
     iv = cipher.nonce
+    # -------------------------------- END -------------------------------- #
     
-    #--------------------------------------------Write ciphertext to protected_output
+    # -------------------------------- WRITE CIPHERTEXT TO protected_output -------------------------------- #
     with open("protected_output.bin", "ab") as f:
         f.write(iv + tag + ciphertext)
-
+    # -------------------------------- END -------------------------------- #
+    
     return frame_index
 
 if __name__ == "__main__":
+    # -------------------------------- OG (Template) Code -------------------------------- #
     parser = argparse.ArgumentParser(description="Firmware Update Tool")
     parser.add_argument("--infile", help="Path to the firmware image to protect.", required=True)
-    # parser.add_argument("--outfile", help="Filename for the output firmware.", required=True)
     parser.add_argument("--version", help="Version number of this firmware.", required=True)
     parser.add_argument("--message", help="Release message for this firmware.", required=True)
     args = parser.parse_args()
-
+    # -------------------------------- END -------------------------------- #
+    
+    
+    # Calls protect_firmware function
     protect_firmware(infile=args.infile, version=int(args.version), message=args.message)
-    # protect_firmware(infile=args.infile, outfile=args.outfile, version=int(args.version), message=args.message)
