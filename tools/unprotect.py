@@ -23,7 +23,8 @@ def main():
         for i in range(0, len(out) // 512):
             frames.append(out[i * 512: (i + 1) * 512])
         print("Received ", len(frames), " frames.")
-        print(frames[2])
+        print(frames[0])
+        return
 
     with open("../secret_build_output.txt", "r") as keyfile:
         key = bytearray([ord(c) for c in keyfile.read(16)])

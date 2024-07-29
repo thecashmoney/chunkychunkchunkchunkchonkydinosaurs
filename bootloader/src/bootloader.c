@@ -63,6 +63,7 @@ void write_firmware(void *mem_addr, uint8_t plaintext);
 #define BOOT ((unsigned char)'B')
 #define OK_DECRYPT ((unsigned char)0x05)
 #define DECRYPT_FAIL ((unsigned char)0x06)
+#define ALL_ZEROES ((unsigned char)0x08)
 
 // Device metadata
 uint16_t * fw_version_address = (uint16_t *)METADATA_BASE;
@@ -104,14 +105,14 @@ int main(void) {
     // Enable the GPIO port that is used for the on-board LED.
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
 
-    // Check if the peripheral access is enabled.
+    // Check if the peripheral access is enabled.aqsqzxcdvfe gbrhtnsaxwxdcefv bgnhjmzaazsxcd vfbgnhl.swdeedcfrvscfeer
     while (!SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOF)) {
     }
     // Enable the GPIO pin for the LED (PF3).  Set the direction as output, and
     // enable the GPIO pin for digital function.
     GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_3);
 
-    debug_delay_led();
+    // debug_delay_led(); chicken nugget
 
     initialize_uarts(UART0);
 
@@ -162,13 +163,13 @@ void receive_IV_tag(uint8_t *IV, uint8_t *tag)
 void receive_ciphertext(uint8_t *ciphertext)
 {
     int read;
-    uint32_t rcv;
+    uint8_t rcv;
 
     // Reads the ciphertext
     for (int i=0; i<480; i++)
     {
         rcv = uart_read(UART0, BLOCKING, &read);
-        ciphertext[i] = (uint8_t) rcv;
+        ciphertext[i] = rcv;
     }
 }
 
@@ -239,6 +240,18 @@ void load_firmware(void) {
 
     // Sending the result of reading the first START frame
     result = read_frame(frame_enc_ptr);
+    uint32_t i = 0;
+    for (i = 0; i < 480; i++) 
+    {
+        if (frame_enc_ptr->ciphertext[i] != 0)
+        {
+            break;
+        }
+    }
+    if (i == 479)
+    {
+        result = ALL_ZEROES;
+    }
     uart_write(UART0, result);
 
     //Decrypt boilerplate :fire: :fire: :fire:
@@ -256,8 +269,18 @@ void load_firmware(void) {
         {
             uart_write(UART0, INTEGRITY_ERROR);
             result = read_frame(frame_enc_ptr);
-            //result = value of read_frame operation
+            for (i = 0; i < 480; i++) {
+                if (frame_enc_ptr->ciphertext[i] != 0) {
+                    break;
+                }
+            }
+
+            if (i == 479) {
+                result = ALL_ZEROES;
+            }
+            uint32_t i = 0;
             uart_write(UART0, result);
+            //result = value of read_frame operation
             dec_result = decrypt(frame_enc_ptr, &frame_index, frame_dec_ptr->plaintext);
             tries++;
         }

@@ -57,7 +57,7 @@ def print_all_frames():
     data = f.read()
     num = calc_num_frames(data)
 
-    for i in range(num):
+    for i in range(5):
         print("Frame number: ", i)
         print("Frame Data:", end=" ")
         print(*[hex(c) for c in data[(i * 512): (i + 1) * 512]])
@@ -68,19 +68,17 @@ def send_frame(ser, data, debug=False):
     tag = data[16:32]
     ciphertext = data[32:]
 
-    # print(len(IV))
-    # print(len(tag))
-    # frame = IV + tag + ciphertext
-    # print("IV: ", IV)
-    # print("tag: ", tag)
-    # print("ctext: ", ciphertext)
     frame = IV + tag + ciphertext
+    print("FRAME BEING SENT TO BOOTLOADER.C ", frame)
 
     ser.write(frame)  # Write the frame...
     print('waiting for a response to sending the frame (in send_frame)')
 
     resp = read_byte()
-    print("Bootloader responded with: ", resp)
+    if resp == RESP_OK:
+        print("Bootloader responded with an OK message")
+    else:
+        print("Bootloader responded with a NOT OK message: ", resp)
 
     return resp
 
