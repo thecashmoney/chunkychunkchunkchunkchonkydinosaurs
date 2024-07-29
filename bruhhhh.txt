@@ -1,0 +1,84 @@
+#include "bootloader.h"
+#include "wolfssl/wolfcrypt/settings.h"
+#include "wolfssl/wolfcrypt/aes.h"
+#include "wolfssl/wolfcrypt/sha.h"
+#include "wolfssl/wolfcrypt/rsa.h"
+#include "../lib/wolfssl/wolfssl/wolfcrypt/error-crypt.h"
+#include "bootloader.h"
+
+// Hardware Imports
+#include "inc/hw_memmap.h"    // Peripheral Base Addresses
+#include "inc/hw_types.h"     // Boolean type
+#include "inc/tm4c123gh6pm.h" // Peripheral Bit Masks and Registers
+// #include "inc/hw_ints.h" // Interrupt numbers
+
+// Driver API Imports
+#include "driverlib/flash.h"     // FLASH API
+#include "driverlib/interrupt.h" // Interrupt API
+#include "driverlib/sysctl.h"    // System control API (clock/reset)
+
+// Application Imports
+#include "driverlib/gpio.h"
+#include "uart/uart.h"
+
+
+
+int main() {
+    //testing IV and TAG generation 
+
+    uint8_t IV[16];
+    uint8_t ctr = 0x00;
+
+    for(int i = 0; i < 16; i++) {
+        IV[i] = ctr;
+        ctr ++;
+        uart_write(UART0, IV[i]);
+    }
+
+    uart_write(UART0, 0x00);
+}
+
+
+
+int decrypt(generic_frame *frame, uint16_t frame_num, uint8_t *plaintext) {
+    //generate IV and Tag for testing purposes
+    uint8_t IV[16];
+    uint8_t ctr = 0x00;
+    for(int i = 0; i < 16; i++) {
+        IV[i] = ctr;
+        ctr ++;
+    }
+
+    // Decrypt the frame
+    // Create a new AES context
+    Aes aes;
+
+    wc_AesSetKey(&aes, frame->IV, 16, frame->IV, AES_DECRYPTION);
+
+    uint8_t authIn[2] = {frame_num >> 8, frame_num & 0xFF};
+
+    // Decrypt the frame
+    int result = wc_AesGcmDecrypt(
+        & aes,
+        plaintext, // Storage for plaintext
+        frame->ciphertext, // Storage for ciphertext
+        480, // Ciphertext length
+        frame->IV, // IV
+        16, // IV length
+        frame->tag, // Tag
+        16, // Tag length
+        authIn, // Header
+        2 // Header length
+    );
+
+    // Verify the tag
+    if (result != 0) {
+        if (result == AES_GCM_AUTH_E) {
+            return AES_GCM_AUTH_E;
+        } else {
+            return 1;
+        }
+    }
+
+    return 0;
+}
