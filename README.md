@@ -1,3 +1,7 @@
+![5xCD cover page](https://github.com/thecashmoney/chunkychunkchunkchunkchonkydinosaurs/blob/main/5xcdREADME.png?raw=true)
+
+
+--------------------------------------- ORIGINAL TEXT ---------------------------------------
 # Cryptographic Automotive Software Handler and Bootloader (CrASHBoot)
 
 Installation and development guide for the most secure (TM) automotive bootloader on the planet! We guarentee that cars running our software will be unhackable (provided hacking is not attempted). Of all the automotive bootloaders, this is certainly one of them. Read on and tremble at our embedded security skillz.
