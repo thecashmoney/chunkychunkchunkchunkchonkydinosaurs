@@ -24,8 +24,8 @@ def main():
             frames.append(out[i * 512: (i + 1) * 512])
         print("Received ", len(frames), " frames.")
 
-    with open("../secret_build_output.txt", "rb") as keyfile:
-        key = keyfile.read(16)
+    with open("../secret_build_output.txt", "r") as keyfile:
+        key = bytearray([ord(c) for c in f.read(16)])
 
     size, index = unprotect_start(frames, key)
     for i in frames[index:]:

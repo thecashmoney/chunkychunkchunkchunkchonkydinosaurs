@@ -5,5 +5,5 @@ with open("firmware.bin", "w") as f:
             f.write(chr(letter))
         letter += 1
 
-with open("firmware.bin", "w") as f:
+with open("firmware.bin", "a") as f:
     f.write("CHUUNDFKSNKDNKNKCHUNK")

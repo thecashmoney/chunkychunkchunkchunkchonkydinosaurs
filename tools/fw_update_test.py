@@ -12,7 +12,8 @@ import serial
 from util import *
 
 ser = serial.Serial("/dev/ttyACM0", 115200)
-RESP_OK = b"\x00"
+RESP_OK = b"\x03"
+RESP_DEC_OK = b"\x05"
 RESP_RESEND = b"\xfc"
 RESP_DEC_ERR = b"\xff"
 FRAME_SIZE = 512
@@ -24,6 +25,10 @@ IV_LEN = 16
 MAC_LEN = 16
 FRAME_MSG_LEN = 464
 FRAME_BODY_LEN = 476
+DECRYPT_FAIL = b'\x06'
+MSG_START = b'\x66'
+MSG_BODY = b'\x01'
+MSG_END = b'\x02'
 
 # WORKING
 def wait_for_update():
@@ -36,11 +41,12 @@ def wait_for_update():
         print("One of the initial bytes:", no)
         ctr += 1
         no = ser.read(1).decode()
-    #print(no)
+    print("Bootloader responded with a", no)
 
-def calc_num_frames(file):
-    if len(file) % FRAME_SIZE == 0:
-        NUM_FRAMES = len(file) // FRAME_SIZE
+def calc_num_frames(filedata):
+    if len(filedata) % FRAME_SIZE == 0:
+        frames = len(filedata) // FRAME_SIZE
+        return frames
     else:
         print("Something is wrong with the firmware protected file.")
 
@@ -58,96 +64,127 @@ def send_frame(ser, data, debug=False):
     # print("ctext: ", ciphertext)
 
     frame = IV + tag + ciphertext
+    print("The frame length is: ", len(frame))
+
     ser.write(frame)  # Write the frame...
-    print('waiting for a response (in send_frame)')
-    resp = ser.read(1)  # Wait for an OK from the bootloader
-    print("Reponse from bootloader:", resp)
+    print('waiting for a response to sending the frame (in send_frame)')
+
+    resp = read_byte()
+    print("Bootloader responded with: ", resp)
 
     return resp
 
+def read_byte():
+    byte = ser.read(1)
+    while byte == b'\x00':
+        byte = ser.read(1)
+    return byte
+    #cringe
+
 def main():
-    # declare the variables as global
-    '''global FRAME_SIZE
-    global NUM_FRAMES
-    global FRAMES_SENT
-    print("FRAMES SENT: ", FRAMES_SENT)'''
-    #global FRAME_SIZE
-
     frames_sent = 0
-    num_frames = 1
+    num_frames = 0
 
-    #send_IV_and_tag(ser)
-    #send_ciphertext(ser, "tester.bin")
     f = open("protected_output.bin", "rb")
     data = f.read()
-    calc_num_frames(data)
+    f.close()
+    num_frames = calc_num_frames(data)
+
+    print("Number of frames:", num_frames)
     wait_for_update()
 
     while frames_sent != num_frames:
         print("Frames sent:", frames_sent)
         current_frame = data[(frames_sent * 512): (frames_sent + 1) * 512]
         response = send_frame(ser, current_frame)
+    
 
-        #i think we need another if statement checking response of original frame
-        #before decryption, we send a uart write so if that one is not ok then other ones
-        # also wont be ok
-        #idk what im doing lowk
-        #this has gone past the point of making sense
-
-        if(response != RESP_OK):
-            #screaming sobbing dying
-            send_frame(ser, current_frame)
+        # if(response != RESP_OK):
+        #     #screaming sobbing dying
+        #     send_frame(ser, current_frame)
             #sends back the current frame if the response is not OK
 
         # Reads 0 if successful decryption, or RESP_RESEND if not
-        decrypt_success = ser.read(1)
-        print("Decrypt status:", decrypt_success)
+        decrypt_response = read_byte()
+        print("Decrypt status:", decrypt_response)
 
 
         #print(response)
-        while decrypt_success != RESP_OK:
+        while decrypt_response!= RESP_DEC_OK:
             print("Resending: response: ", response)
-            if response == RESP_RESEND:
+            if decrypt_response == RESP_RESEND:
                 response = send_frame(ser, current_frame)
-                decrypt_success = ser.read(1)
-            elif response == RESP_DEC_ERR:
+                decrypt_response = read_byte()
+                print("Decrypt status:", decrypt_response)
+            elif decrypt_response == RESP_DEC_ERR:
                 print("Potential attack. Aborting.")
                 return
             else:
-                print("Bootloader error encountered.")
+                print("Bootloader error encountered. Responded with", decrypt_response)
                 return
         
         frames_sent += 1
             
         
         # reading message type
-        message_type = ser.read(1)
+        message_type = read_byte()
+        print("Message type: ", message_type)
         
-        if message_type == b'\x00':
-            for i in range(FRAME_MSG_LEN):
-                print("printing start frame", ser.read(1))
-        elif message_type == b'\x01':
+
+        msg_str = b""
+        if message_type == MSG_START:
+            msg_len = u8(ser.read(1), endian="little")
+            # print("Message len:", msg_len)
+            # print("Calculation factor:", frames_sent * FRAME_MSG_LEN)
+            if msg_len > frames_sent * FRAME_MSG_LEN:
+                for _ in range(FRAME_MSG_LEN):
+                    msg_str += ser.read(1)
+            else:
+                for _ in range((msg_len % FRAME_MSG_LEN)):
+                    msg_str += ser.read(1)
+            print("Release message:", msg_str)
+        if message_type == MSG_BODY:
             body_data = ser.read(FRAME_BODY_LEN)
             print("BODY FRAME DATA: ", body_data)
-        elif message_type == b'\x02':
+        elif message_type == MSG_END:
             end = ser.read(1)
             print("END MESSAGE TYPE LOL: ", end)
         else:
             print("Message type:", message_type)
 
-        
+        # print(ser.read(1))
         # print(message_type)
-
-        
     ser.close()
-    f.close()
 
 
 
-def test_reader():
-    pass
+def test():
+    wait_for_update()
+    f = open("protected_output.bin", "rb")
+    total_data = f.read()
+    original_data = total_data[:512]
+    new_data = b''
+    
+    response = send_frame(ser, total_data[:512])
+    if response == b'\x00':
+        ser.read(1)
+        ser.read(1)
+        for _ in range(512):
+            value = ser.read(1)
+            #print(value, end="")
+            new_data += value
+    else:
+        print("Error response", response)
+
+    print()
+    print("Original:", original_data)
+    print("New:", new_data)
+    print("Are they equal?", original_data == new_data)
+
+
     
 if __name__ == "__main__":
-    # parser = argparse.ArgumentParser(description="Firmware Update Tool")
-    # parser.add_argument("--firmware", help="Path to firmware image to load.", required=True)
+    #calc num frames works
     main()
+
+    

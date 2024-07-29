@@ -78,8 +78,9 @@ def start_protect(size: int, version: int, message: str):
 
         index += RMmax
     #----------------------ENCRYPTION----------------------------------
-    with open("../secret_build_output.txt", "rb") as keyfile:
-        key = keyfile.read(16)
+    with open("../secret_build_output.txt", "r") as keyfile:
+       key = bytearray([ord(c) for c in keyfile.read(16)])
+       print(key)
     outputMsg = []
 
     j = 0
