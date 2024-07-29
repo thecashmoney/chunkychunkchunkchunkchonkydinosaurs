@@ -435,7 +435,8 @@ void load_firmware(void) {
 
     for (int i = 0; i < num_frames; i++) {
         // Read in the next frame and write a success/fail message to fw update
-        uart_write(UART0, read_frame(frame_enc_ptr));
+        result = read_frame(frame_enc_ptr);
+        uart_write(UART0, result);
         
         //Decrypt boilerplate :fire: :fire: :fire:
         dec_result = decrypt(frame_enc_ptr, &frame_index, frame_dec_ptr->plaintext);

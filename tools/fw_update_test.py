@@ -52,6 +52,16 @@ def calc_num_frames(filedata):
     else:
         print("Something is wrong with the firmware protected file.")
 
+def print_all_frames():
+    f = open("protected_output.bin", "rb")
+    data = f.read()
+    num = calc_num_frames(data)
+
+    for i in range(num):
+        print("Frame number: ", i)
+        print("Frame Data:", end=" ")
+        print(*[hex(c) for c in data[(i * 512): (i + 1) * 512]])
+
 def send_frame(ser, data, debug=False):
     # print("SEND FRAME IS RUNNING")
     IV = data[0:16]
@@ -64,7 +74,6 @@ def send_frame(ser, data, debug=False):
     # print("IV: ", IV)
     # print("tag: ", tag)
     # print("ctext: ", ciphertext)
-
     frame = IV + tag + ciphertext
 
     ser.write(frame)  # Write the frame...
@@ -114,7 +123,6 @@ def main():
         #print(response)
         while decrypt_response!= RESP_DEC_OK:
             print("Resending: response: ", response)
-            print("Frame:", current_frame[32:])
             if decrypt_response == RESP_RESEND:
                 response = send_frame(ser, current_frame)
                 decrypt_response = read_byte()
@@ -198,6 +206,7 @@ def test():
     
 if __name__ == "__main__":
     #calc num frames works
+    #main()
     main()
 
     
