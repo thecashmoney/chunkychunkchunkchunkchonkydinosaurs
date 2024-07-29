@@ -37,6 +37,7 @@ def protect_firmware(infile, version, message):
     with open(infile, "rb") as fp:
         firmware = fp.read()
     index = start_protect(len(firmware), version, message)
+    print(index)
     index = protect_body(index, firmware)
     print("Number of frames:", protect_end(index) + 1)
 

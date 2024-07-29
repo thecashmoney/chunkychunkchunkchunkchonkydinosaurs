@@ -114,6 +114,7 @@ def main():
         #print(response)
         while decrypt_response!= RESP_DEC_OK:
             print("Resending: response: ", response)
+            print("Frame:", current_frame[32:])
             if decrypt_response == RESP_RESEND:
                 response = send_frame(ser, current_frame)
                 decrypt_response = read_byte()
@@ -155,14 +156,14 @@ def main():
             body_len = u32(ser.read(4), endian="little")
             if body_len > frames_sent * FRAME_MSG_LEN:
                 for _ in range(FRAME_MSG_LEN):
-                    msg_str += ser.read(1)
+                    body_str += ser.read(1)
             else:
-                for _ in range((msg_len % FRAME_MSG_LEN)):
-                    msg_str += ser.read(1)
-            print("Firmware:", msg_str)
+                for _ in range((body_len % FRAME_MSG_LEN)):
+                    body_str += ser.read(1)
+            print("Firmware:", body_str)
         elif message_type == MSG_END:
             end = ser.read(1)
-            print("END MESSAGE TYPE LOL: ", end)
+            print("END MESSAGE TYPE LOL XDXDXDXDXDXD: ", end)
 
         # print(ser.read(1))
         # print(message_type)

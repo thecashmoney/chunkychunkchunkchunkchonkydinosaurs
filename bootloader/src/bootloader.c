@@ -140,7 +140,7 @@ int main(void) {
 // Reads in the IV and the tag from fw_update.py
 void receive_IV_tag(uint8_t *IV, uint8_t *tag)
 {
-    int read;
+    uint8_t read;
     uint32_t rcv;
 
     // Reads the IV
@@ -192,7 +192,7 @@ int unpad(uint8_t* plaintext, uint32_t plaintext_length)
 uint32_t read_frame(generic_frame *frame) 
 {
     // read the IV and tag and store them in the generic_frame struct
-    receive_IV_tag(frame->IV, frame->tag); 
+    receive_IV_tag(frame->IV, frame->tag);
 
     // read the ciphertext and store it in the generic_frame struct
     receive_ciphertext(frame->ciphertext);
@@ -412,7 +412,6 @@ void load_firmware(void) {
 
           //  uart_write_str(UART0, frame_dec_start_ptr->msg);
         }
-        return;
     } 
     else if (msg_size == FRAME_MSG_LEN) 
     {
@@ -430,68 +429,71 @@ void load_firmware(void) {
         }
     }
 
-    // // /* -------------------------------- This code is for the firmware body frames -------------------------------- */
-    // // Iterate through body frames
-    // uint32_t num_frames = fw_size % FRAME_BODY_LEN == 0 ? (uint32_t) (fw_size / FRAME_BODY_LEN): (uint32_t) (fw_size / FRAME_BODY_LEN) + 1;
+    // /* -------------------------------- This code is for the firmware body frames -------------------------------- */
+    // Iterate through body frames
+    uint32_t num_frames = fw_size % FRAME_BODY_LEN == 0 ? (uint32_t) (fw_size / FRAME_BODY_LEN): (uint32_t) (fw_size / FRAME_BODY_LEN) + 1;
 
-    // for (int i = 0; i < num_frames; i++) {
-    //     // Read in the next frame and write a success/fail message to fw update
-    //     uart_write(UART0, read_frame(frame_enc_ptr));
+    for (int i = 0; i < num_frames; i++) {
+        // Read in the next frame and write a success/fail message to fw update
+        uart_write(UART0, read_frame(frame_enc_ptr));
         
-    //     //Decrypt boilerplate :fire: :fire: :fire:
-    //     dec_result = decrypt(frame_enc_ptr, &frame_index, frame_dec_ptr->plaintext);
+        //Decrypt boilerplate :fire: :fire: :fire:
+        dec_result = decrypt(frame_enc_ptr, &frame_index, frame_dec_ptr->plaintext);
 
-    //     //While decryption result is not 0, resend the frame until max decrypts is hit. Otherwise write an OK message.
-    //     if (dec_result == 0) 
-    //     {
-    //         uart_write(UART0, OK_DECRYPT);
-    //     }
-    //     else 
-    //     {
-    //         tries = 1;
-    //         while (tries <= MAX_DECRYPTS && (dec_result != 0)) 
-    //         {
-    //             uart_write(UART0, INTEGRITY_ERROR);
-    //             result = read_frame(frame_enc_ptr);
-    //             //result = value of read_frame operation
-    //             uart_write(UART0, result);
-    //             dec_result = decrypt(frame_enc_ptr, &frame_index, frame_dec_ptr->plaintext);
-    //             tries++;
-    //         }
-    //         uart_write(UART0, DECRYPT_FAIL); 
-    //     }
+        //While decryption result is not 0, resend the frame until max decrypts is hit. Otherwise write an OK message.
+        if (dec_result == 0) 
+        {
+            uart_write(UART0, OK_DECRYPT);
+        }
+        else 
+        {
+            tries = 1;
+            while (tries <= MAX_DECRYPTS && (dec_result != 0)) 
+            {
+                uart_write(UART0, INTEGRITY_ERROR);
+                result = read_frame(frame_enc_ptr);
+                //result = value of read_frame operation
+                uart_write(UART0, result);
+                dec_result = decrypt(frame_enc_ptr, &frame_index, frame_dec_ptr->plaintext);
+                tries++;
+            }
+            if (dec_result != 0) {
+                (UART0, DECRYPT_FAIL); 
+            }
+        }
         
-    //     // If the frame is not a body frame, there is an error
-    //     if (frame_dec_body_ptr->type != 1) 
-    //     {
-    //         uart_write(UART0, TYPE_ERROR);
-    //         return;
-    //     }
+        // If the frame is not a body frame, there is an error
+        if (frame_dec_body_ptr->type != 1) 
+        {
+            uart_write(UART0, TYPE_ERROR);
+            return;
+        }
 
-    //     uart_write(UART0, frame_dec_body_ptr->type);
+        uart_write(UART0, frame_dec_body_ptr->type);
+        frame_index++;
  
-    //     // insert function here to write to flash here
+        // insert function here to write to flash here
 
         
-    //     if (i == num_frames - 1 && (fw_size % FRAME_BODY_LEN != 0)) 
-    //     {
-    //         // Print out unpadded message
-    //         uint32_t index = unpad(frame_dec_body_ptr->plaintext, FRAME_BODY_LEN);
-    //         // frame_dec_body_ptr->plaintext[index] = '\0';
-    //         for(uint32_t i = 0; i < index; i++) 
-    //         {
-    //             uart_write(UART0, (uint8_t)frame_dec_body_ptr->plaintext[i]);
-    //         }
-    //     } 
-    //     else 
-    //     {
-    //         // Print out firmware stuff
-    //         for(uint32_t i = 0; i < FRAME_BODY_LEN; i++) 
-    //         {
-    //             uart_write(UART0, (uint8_t)frame_dec_body_ptr->plaintext[i]);
-    //         }
-    //     }
-    // }
+        if (i == num_frames - 1 && (fw_size % FRAME_BODY_LEN != 0)) 
+        {
+            // Print out unpadded message
+            uint32_t index = unpad(frame_dec_body_ptr->plaintext, FRAME_BODY_LEN);
+            // frame_dec_body_ptr->plaintext[index] = '\0';
+            for(uint32_t i = 0; i < index; i++) 
+            {
+                uart_write(UART0, (uint8_t)frame_dec_body_ptr->plaintext[i]);
+            }
+        } 
+        else 
+        {
+            // Print out firmware stuff
+            for(uint32_t i = 0; i < FRAME_BODY_LEN; i++) 
+            {
+                uart_write(UART0, (uint8_t)frame_dec_body_ptr->plaintext[i]);
+            }
+        }
+    }
     
     // /* -------------------------------- This code is for the end frame -------------------------------- */
     // // Read in the next frame
@@ -725,24 +727,11 @@ uint32_t decrypt(generic_frame *frame, uint32_t *frame_num, uint8_t *plaintext) 
     // Create a new AES context
     Aes aes;
     wc_AesGcmSetKey(&aes, key, 16); // Set the key
-
-
-    // 0x99991111
-    // 0x9999
-    // 0x1111
-
-    //original
     uint8_t authIn[2] = {
         (uint8_t) *frame_num & 0xFF,
         (uint8_t) *frame_num >> 8
     };
 
-    // :(
-    
-    // uint8_t authIn[2] = {
-    //     (uint8_t) *frame_num & 0xFF,
-    //     (uint8_t) *frame_num >> 8
-    // };
  
     // Decrypt the frame
     int result = wc_AesGcmDecrypt(
