@@ -92,7 +92,7 @@ def start_protect(size: int, version: int, message: str):
     rmsize = len(msg)  # stores the release msg size
 
     # msg type, version number, data size, release msg size
-    sizes = p32(0, endian='little') + p32(version, endian='little') + p32(size, endian='little') + p32(rmsize, endian='little')
+    sizes = p32(1, endian='little') + p32(version, endian='little') + p32(size, endian='little') + p32(rmsize, endian='little')
     
     index = 0
 
@@ -113,7 +113,7 @@ def start_protect(size: int, version: int, message: str):
 
     # -------------------------------- ENCRYPTION -------------------------------- #
     with open("../secret_build_output.txt", "r") as keyfile:
-        key = [ord(c) for c in keyfile.read(16)]
+        key = bytearray([ord(c) for c in keyfile.read(16)])
     outputMsg = []
 
     j = 0
@@ -158,7 +158,7 @@ def protect_body(frame_index: int, data: bytes):
 
     # Reads the file containing the AES-GCM key
     with open("../secret_build_output.txt", "r") as keyfile:
-        key = [ord(c) for c in keyfile.read(16)]
+        key = bytearray([ord(c) for c in keyfile.read(16)])
 
     index = 0
     
@@ -174,7 +174,7 @@ def protect_body(frame_index: int, data: bytes):
         ### Creating plaintext
         # Adding frame type code
         plaintext = bytearray(0)
-        plaintext += p32(1, endian='little')
+        plaintext += p32(2, endian='little')
 
         # Adding firmware plaintext
         if len(data) - index < DATAmax:
@@ -223,10 +223,10 @@ def protect_end(frame_index):
     
     # Opens the AES-GCM key
     with open("../secret_build_output.txt", "r") as keyfile:
-        key = [ord(c) for c in keyfile.read(16)]
+        key = bytearray([ord(c) for c in keyfile.read(16)])
 
     # Encrypting the end frame and padding it
-    data = pad(p8(2, endian='little'), 480, style='iso7816')
+    data = pad(p8(3, endian='little'), 480, style='iso7816')
     cipher = AES.new(key, AES.MODE_GCM)
     cipher.update(p16(frame_index))
 
