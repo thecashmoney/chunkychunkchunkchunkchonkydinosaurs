@@ -30,10 +30,13 @@ def update_line(headerFile, varUpdate, value: bytes):
     # Make sure the varUpdate is in all caps
     varUpdate = varUpdate.upper()
 
-    # Read the existing content of the header file
-    with open(headerFile, 'r') as file:
-        lines = file.readlines()
-
+    # Read the existing content of the header file if it exists
+    if os.path.exists(headerFile):
+        with open(headerFile, 'r') as file:
+            lines = file.readlines()
+    else:
+        lines = []
+        
     # define pattern and newMsg
     pattern = f'define {varUpdate}'  # defines the pattern to look for
     newMsg = f'#define {varUpdate} "{bytes_to_formatted_string(value)}"\n'  # defines the new msg that will be input into the file
@@ -45,8 +48,12 @@ def update_line(headerFile, varUpdate, value: bytes):
             break
     else:
         # If the variable was not found, add it to the end of the file
-        lines[-1] = newMsg
-        lines.append('\n#endif')
+        if lines == []:
+            lines.append(newMsg)
+            lines.append('\n#endif')
+        else:
+            lines[-1] = newMsg
+            lines.append('\n#endif')
 
     # Write the updated content back to the header file
     with open(headerFile, 'w') as file:
@@ -71,6 +78,10 @@ def bytes_to_formatted_string(byte_data):
 
 # Function to generate the keys and build the bootloader
 def make_bootloader() -> bool:
+    # Creating the secrets.h file (it's temporary)
+    with open("../bootloader/inc/secrets.h", "w") as f:
+        pass
+
     # Generate AAD (Additional Authentication Data)
     #aad = get_random_bytes(16)  # used to authenticate integrity of the encrypted data
 
@@ -79,11 +90,8 @@ def make_bootloader() -> bool:
 
     print("Aes Key: ", aesKey)
 
-    #with open('../secret_build_output.txt', 'r+') as file:
-    #    file.truncate(0)  # This will truncate the file to zero length
-
     # update secrets.h with the newly generated AES-GCM (128 bit) key
-    update_line("${HOME}/chunkychunkchunkchunkchonkydinosaurs/bootloader/inc/secrets.h", "aesKey", aesKey)
+    update_line("../bootloader/inc/secrets.h", "aesKey", aesKey)
 
     # update secrets.h with the newly generated AAD 
     #update_line("${HOME}/chunkychunkchunkchunkchonkydinosaurs/bootloader/inc/secrets.h", "aad", aad.hex())
@@ -96,6 +104,8 @@ def make_bootloader() -> bool:
 
     subprocess.call("make clean", shell=True)
     status = subprocess.call("make")
+
+    os.remove("../bootloader/inc/secrets.h")
 
     # Return True if make returned 0, otherwise return False.
     return status == 0
