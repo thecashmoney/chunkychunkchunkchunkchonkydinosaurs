@@ -137,7 +137,7 @@ int main(void) {
 // Reads in the IV and the tag from fw_update.py
 void receive_IV_tag(uint8_t *IV, uint8_t *tag)
 {
-    int read;
+    uint8_t read;
     uint32_t rcv;
 
     // Reads the IV

@@ -50,10 +50,8 @@ def update_line(headerFile, varUpdate, value: bytes):
         # If the variable was not found, add it to the end of the file
         if lines == []:
             lines.append(newMsg)
-            lines.append('\n#endif')
         else:
             lines[-1] = newMsg
-            lines.append('\n#endif')
 
     # Write the updated content back to the header file
     with open(headerFile, 'w') as file:
