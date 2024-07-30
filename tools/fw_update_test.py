@@ -131,7 +131,7 @@ def main():
         
         # reading message type
         message_type = read_byte()
-        print("Message type: ", message_type, message_type == MSG_BODY)
+        print("Message type: ", message_type)
         if message_type == VERSION_ERROR:
             print("Go kill yourself")
             return
@@ -164,10 +164,10 @@ def main():
                     body_str += ser.read(1)
             print("Firmware:", body_str)
         elif message_type == MSG_END:
-            end = ser.read(1)
-            print("END MESSAGE TYPE LOL: ", end)
+            print("END MESSAGE TYPE LOL: ", message_type)
+            return
         else:
-            print("Frick", message_type)
+            print("noooooooooooooooooooooooooooooooooooooooooooo", message_type)
         # print(ser.read(1))
         # print(message_type)
     ser.close()
