@@ -54,15 +54,23 @@ int write_firmware(void *mem_addr, uint8_t *firmware, uint32_t data_len);
 
 #define MAX_DECRYPTS 5
 
-// Protocol Constants
-#define OK ((unsigned char)0x03)
-#define INTEGRITY_ERROR ((unsigned char)0xFC)
-#define VERSION_ERROR ((unsigned char)0xFD)
-#define TYPE_ERROR ((unsigned char)0xFE)
+// Frame type constants
+#define TYPE_START ((unsigned char)0x01)
+#define TYPE_BODY ((unsigned char)0x02)
+#define TYPE_END ((unsigned char)0x03)
+
+// Status constants to send to fw_update
+#define OK ((unsigned char)0x04)
+#define OK_DECRYPT ((unsigned char)0x05)
+#define DECRYPT_FAIL ((unsigned char)0x07)
+#define INTEGRITY_ERROR ((unsigned char)0x06)
+#define VERSION_ERROR ((unsigned char)0x08)
+#define TYPE_ERROR ((unsigned char)0x09)
+
+// Two characters to start off interaction between bl and update
 #define UPDATE ((unsigned char)'U')
 #define BOOT ((unsigned char)'B')
-#define OK_DECRYPT ((unsigned char)0x05)
-#define DECRYPT_FAIL ((unsigned char)0x06)
+
 
 // Device metadata
 uint16_t * fw_version_address = (uint16_t *)METADATA_BASE;
@@ -271,6 +279,10 @@ void load_firmware(void) {
         }
     }
 
+    if (frame_dec_start_ptr->type != TYPE_START) {
+        uart_write(UART0, TYPE_ERROR);
+    }
+
     // Obtaining values of metadata + storing in variables
     uint32_t version = frame_dec_start_ptr->version_num;
     uint32_t fw_size = frame_dec_start_ptr->total_size;
@@ -312,7 +324,7 @@ void load_firmware(void) {
 
     //writes the frame type
     //uart_write(UART0, frame_dec_start_ptr->type);
-    uart_write(UART0, '\x66');
+    uart_write(UART0, TYPE_START);
     //change the type not to be hard-coded
     frame_index++;
 
@@ -361,13 +373,13 @@ void load_firmware(void) {
                 }
             }
             // If the frame is not a start frame, there is an error
-            if (frame_dec_start_ptr->type != 0x00) {
+            if (frame_dec_start_ptr->type != TYPE_START) {
                 uart_write(UART0, TYPE_ERROR);
                 return;
             }
             
             //Writing message type back to fw update test for testing purposes (please remove later)
-            uart_write(UART0, '\x66');
+            uart_write(UART0, TYPE_START);
             frame_index++;
 
             for (int i = 0; i < 4; i++) {
@@ -451,12 +463,12 @@ void load_firmware(void) {
     
         
         // If the frame is not a body frame, there is an error
-        if (frame_dec_body_ptr->type != 1) {
+        if (frame_dec_body_ptr->type != TYPE_BODY) {
             uart_write(UART0, TYPE_ERROR);
             return;
         }
 
-        uart_write(UART0, frame_dec_body_ptr->type);
+        uart_write(UART0, TYPE_BODY);
 
         // Writing a frame of the firmware to flash 
         write_firmware(flash_address, frame_dec_body_ptr->plaintext, FRAME_BODY_LEN);
@@ -522,13 +534,13 @@ void load_firmware(void) {
     }
 
     /* If the first frame is not 2, there is an error */
-    if (frame_dec_end_ptr->type != 2) {
+    if (frame_dec_end_ptr->type != TYPE_END) {
         uart_write(UART0, TYPE_ERROR);
         return;
     }
 
     /* Sending back the end frame type to the python - remove later */ 
-    uart_write(UART0, frame_dec_body_ptr->type);
+    uart_write(UART0, TYPE_END);
 
     
 }
