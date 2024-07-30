@@ -37,7 +37,6 @@ def protect_firmware(infile, version, message):
     with open(infile, "rb") as fp:
         firmware = fp.read()
     index = start_protect(len(firmware), version, message)
-    print(index)
     index = protect_body(index, firmware)
     print("Number of frames:", protect_end(index) + 1)
 
@@ -170,8 +169,8 @@ def protect_body(frame_index: int, data: bytes):
     return frame_index
 
 def protect_end(frame_index):
-    with open("../secret_build_output.txt", "r") as keyfile:
-        key = bytearray([ord(c) for c in keyfile.read(16)])
+    with open("../secret_build_output.txt", "rb") as keyfile:
+        key = keyfile.read(16)
 
     # Encrypting the end frame and padding it
     data = pad(p8(2, endian='little'), 480, style='iso7816')

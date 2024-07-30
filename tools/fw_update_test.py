@@ -15,10 +15,12 @@ ser = serial.Serial("/dev/ttyACM0", 115200)
 RESP_OK = b"\x03"
 RESP_DEC_OK = b"\x05"
 RESP_RESEND = b"\xfc"
-RESP_DEC_ERR = b"\xff"
+RESP_DEC_ERR = b"\x06"
 FRAME_SIZE = 512
 NUM_FRAMES = 1
 FRAMES_SENT = 0
+VERSION_ERROR = b'\xfd'
+TYPE_ERROR  = b'\xfe'
 
 #constants from bootloader.h
 IV_LEN = 16
@@ -50,33 +52,26 @@ def calc_num_frames(filedata):
     else:
         print("Something is wrong with the firmware protected file.")
 
-def print_all_frames():
-    f = open("protected_output.bin", "rb")
-    data = f.read()
-    num = calc_num_frames(data)
-
-    for i in range(5):
-        print("Frame number: ", i)
-        print("Frame Data:", end=" ")
-        print(*[hex(c) for c in data[(i * 512): (i + 1) * 512]])
-
 def send_frame(ser, data, debug=False):
     # print("SEND FRAME IS RUNNING")
     IV = data[0:16]
     tag = data[16:32]
     ciphertext = data[32:]
 
+    # print(len(IV))
+    # print(len(tag))
+    # frame = IV + tag + ciphertext
+    # print("IV: ", IV)
+    # print("tag: ", tag)
+    # print("ctext: ", ciphertext)
+
     frame = IV + tag + ciphertext
-    print("The frame length is: ", len(frame))
 
     ser.write(frame)  # Write the frame...
     print('waiting for a response to sending the frame (in send_frame)')
 
     resp = read_byte()
-    if resp == RESP_OK:
-        print("Bootloader responded with an OK message")
-    else:
-        print("Bootloader responded with a NOT OK message: ", resp)
+    print("Bootloader responded with: ", resp)
 
     return resp
 
@@ -84,12 +79,14 @@ def read_byte():
     byte = ser.read(1)
     while byte == b'\x00':
         byte = ser.read(1)
+        print("null byte >:(")
     return byte
     #cringe
 
 def main():
-    frames_sent = 0
+    start_frames_sent = 0
     num_frames = 0
+    body_frames_sent = 0
 
     f = open("protected_output.bin", "rb")
     data = f.read()
@@ -99,9 +96,10 @@ def main():
     print("Number of frames:", num_frames)
     wait_for_update()
 
-    while frames_sent != num_frames:
-        print("Frames sent:", frames_sent)
-        current_frame = data[(frames_sent * 512): (frames_sent + 1) * 512]
+    while (start_frames_sent + body_frames_sent) != num_frames:
+        total_sent = (start_frames_sent + body_frames_sent)
+        print("Frames sent:", start_frames_sent + body_frames_sent)
+        current_frame = data[total_sent * 512: (total_sent + 1) * 512]
         response = send_frame(ser, current_frame)
     
 
@@ -128,36 +126,48 @@ def main():
             else:
                 print("Bootloader error encountered. Responded with", decrypt_response)
                 return
-        
-        frames_sent += 1
+
             
         
         # reading message type
         message_type = read_byte()
-        print("Message type: ", message_type)
-        
+        print("Message type: ", message_type, message_type == MSG_BODY)
+        if message_type == VERSION_ERROR:
+            print("Go kill yourself")
+            return
+        elif message_type == TYPE_ERROR:
+            print("Type error")
+            return
 
         msg_str = b""
+        body_str = b""
         if message_type == MSG_START:
-            msg_len = u8(ser.read(1), endian="little")
-            # print("Message len:", msg_len)
-            # print("Calculation factor:", frames_sent * FRAME_MSG_LEN)
-            if msg_len > frames_sent * FRAME_MSG_LEN:
+            start_frames_sent += 1
+            msg_len = u32(ser.read(4), endian="little")
+            print("Message len:", msg_len)
+            print("Calculation factor:", start_frames_sent * FRAME_MSG_LEN)
+            if msg_len > start_frames_sent * FRAME_MSG_LEN:
                 for _ in range(FRAME_MSG_LEN):
                     msg_str += ser.read(1)
             else:
-                for _ in range((msg_len % FRAME_MSG_LEN)):
+                for _ in range((msg_len % FRAME_MSG_LEN) if msg_len % FRAME_MSG_LEN != 0 else FRAME_MSG_LEN):
                     msg_str += ser.read(1)
             print("Release message:", msg_str)
-        if message_type == MSG_BODY:
-            body_data = ser.read(FRAME_BODY_LEN)
-            print("BODY FRAME DATA: ", body_data)
+        elif message_type == MSG_BODY:
+            body_frames_sent += 1
+            body_len = u32(ser.read(4), endian="little")
+            if body_len > body_frames_sent * FRAME_BODY_LEN:
+                for _ in range(FRAME_BODY_LEN):
+                    body_str += ser.read(1)
+            else:
+                for _ in range((body_len % FRAME_BODY_LEN) if body_len % FRAME_BODY_LEN != 0 else FRAME_BODY_LEN):
+                    body_str += ser.read(1)
+            print("Firmware:", body_str)
         elif message_type == MSG_END:
             end = ser.read(1)
             print("END MESSAGE TYPE LOL: ", end)
         else:
-            print("Message type:", message_type)
-
+            print("Frick", message_type)
         # print(ser.read(1))
         # print(message_type)
     ser.close()
@@ -191,7 +201,6 @@ def test():
     
 if __name__ == "__main__":
     #calc num frames works
-    #main()
     main()
 
     
