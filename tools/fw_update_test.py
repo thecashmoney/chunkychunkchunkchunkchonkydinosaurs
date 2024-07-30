@@ -197,8 +197,6 @@ def test():
     print("New:", new_data)
     print("Are they equal?", original_data == new_data)
 
-
-    
 if __name__ == "__main__":
     #calc num frames works
     main()
