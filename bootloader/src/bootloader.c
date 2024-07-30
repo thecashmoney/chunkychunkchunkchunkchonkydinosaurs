@@ -122,8 +122,8 @@ int main(void) {
         if (instruction == UPDATE) {
             uart_write(UART0, ((unsigned char)'U'));
             load_firmware();
-            // uart_write_str(UART0, "Loaded new firmware.\n");
-            // nl(UART0);
+            uart_write_str(UART0, "Loaded new firmware.\n");
+            nl(UART0);
         } else if (instruction == BOOT) {
             // uart_write_str(UART0, "B");
             // uart_write_str(UART0, "Booting firmware...\n");
@@ -498,7 +498,7 @@ void load_firmware(void) {
     //Decryption - save result of decryption operation in dec_result
     dec_result = decrypt(frame_enc_ptr, &frame_index, frame_dec_ptr->plaintext);
 
-    //While decryption result is not 0, resend the frame until max decrypts is hit. Otherwise write an OK message.
+    /* While decryption result is not 0, resend the frame until max decrypts is hit. Otherwise write an OK message. */
     if (dec_result == 0) { 
         uart_write(UART0, OK_DECRYPT);
     } else {
@@ -506,34 +506,34 @@ void load_firmware(void) {
         while (tries <= MAX_DECRYPTS && (dec_result != 0)) {
             uart_write(UART0, INTEGRITY_ERROR);
             result = read_frame(frame_enc_ptr);
-            //result = value of read_frame operation
+            /* result = value of read_frame operation */
             uart_write(UART0, result);
             dec_result = decrypt(frame_enc_ptr, &frame_index, frame_dec_ptr->plaintext);
             tries++;
         }
         if (dec_result != 0) {
-            // Decrypt failed more than the max number of times we allow
+            /* Decrypt failed more than the max number of times we allow */
             uart_write(UART0, DECRYPT_FAIL);
             return;
         } else {
-            // Decrypt was successful, write OK message back to python
+            /* Decrypt was successful, write OK message back to python */
             uart_write(UART0, OK_DECRYPT);
         }
     }
 
-    // If the first frame is not 2, there is an error
+    /* If the first frame is not 2, there is an error */
     if (frame_dec_end_ptr->type != 2) {
         uart_write(UART0, TYPE_ERROR);
         return;
     }
 
-    // Sending back the end frame type to the python - remove later
+    /* Sending back the end frame type to the python - remove later */ 
     uart_write(UART0, frame_dec_body_ptr->type);
 
     
 }
 
-// Erase a given number of pages starting from the page address
+/* Erase a given number of pages starting from the page address */ 
 uint32_t erase_pages(void *page_addr, uint32_t num_pages) {
     for (uint32_t i = 0; i < num_pages; i++) {
         uint32_t page_address = (uint32_t) &page_addr + (i * FLASH_PAGESIZE);
