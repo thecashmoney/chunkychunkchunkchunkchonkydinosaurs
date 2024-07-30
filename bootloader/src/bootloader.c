@@ -546,12 +546,14 @@ uint32_t erase_pages(void *page_addr, uint32_t num_pages) {
 }
 
 /*
+ * --------------------------------------------------------------
  * Program a stream of bytes to the flash.
  * This function takes the starting address of a 1KB page, a pointer to the
  * data to write, and the number of byets to write.
  *
  * This functions performs an erase of the specified flash page before writing
  * the data.
+ * --------------------------------------------------------------
  */
 
 
