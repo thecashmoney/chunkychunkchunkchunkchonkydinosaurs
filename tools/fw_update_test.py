@@ -100,7 +100,7 @@ def main():
         total_sent = (start_frames_sent + body_frames_sent)
         print("Frames sent:", start_frames_sent + body_frames_sent)
         current_frame = data[total_sent * 512: (total_sent + 1) * 512]
-        response = send_frame(ser, current_frame)
+        response = send_frame(ser, current_frame) 
     
 
         # if(response != RESP_OK):
