@@ -448,14 +448,9 @@ void load_firmware(void) {
         uart_write(UART0, TYPE_BODY);
 
         // Writing a frame of the firmware to flash 
-        write_firmware(flash_address, frame_dec_body_ptr->plaintext, FRAME_BODY_LEN);
-        flash_address += FRAME_BODY_LEN;
 
 
         //write msg size: remove this later
-        for (int i = 0; i < 4; i++) {
-            uart_write(UART0, (fw_size >> (8 * (i))) & 255);
-        }
 
         frame_index++;
  
@@ -465,16 +460,8 @@ void load_firmware(void) {
             uint32_t index = unpad(frame_dec_body_ptr->plaintext, FRAME_BODY_LEN);
             // frame_dec_body_ptr->plaintext[index] = '\0';
             // insert function here to write to flash here (unpadded firmware data)
-
-            //remove this for loop later
-            for(uint32_t i = 0; i < index; i++) {
-                uart_write(UART0, (uint8_t)frame_dec_body_ptr->plaintext[i]);
-            }
         } else {
             // Print out firmware stuff - remove later
-            for(uint32_t i = 0; i < FRAME_BODY_LEN; i++) {
-                uart_write(UART0, (uint8_t)frame_dec_body_ptr->plaintext[i]);
-            }
             // insert function here to write to flash here (full frame of firmware data)
         }
     }

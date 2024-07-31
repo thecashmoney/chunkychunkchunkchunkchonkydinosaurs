@@ -144,14 +144,6 @@ def main():
             start_frames_sent += 1
         elif message_type == MSG_BODY:
             body_frames_sent += 1
-            body_len = u32(ser.read(4), endian="little")
-            if body_len > body_frames_sent * FRAME_BODY_LEN:
-                for _ in range(FRAME_BODY_LEN):
-                    body_str += ser.read(1)
-            else:
-                for _ in range((body_len % FRAME_BODY_LEN) if body_len % FRAME_BODY_LEN != 0 else FRAME_BODY_LEN):
-                    body_str += ser.read(1)
-            print("Firmware:", body_str)
         elif message_type == MSG_END:
             print("END MESSAGE TYPE LOL: ", message_type)
             return
