@@ -226,8 +226,11 @@ void read_frame(generic_frame *frame)
  * Load the firmware into flash.
  */
 void load_firmware(void) {
+    // Address to flash metadata and firmware to
+    void *flash_address = FW_BASE;
+
     // Erases 30 pages of memory to write the stuff
-    erase_pages(FW_BASE, 30);
+    erase_pages(flash_address, 30);
 
     //params needed: generic_frame *frame, uint32_t *frame_num, uint8_t *plaintext
     uint32_t tries = 0;
@@ -325,14 +328,13 @@ void load_firmware(void) {
     //change the type not to be hard-coded
     frame_index++;
 
-    //Writes message size - remove later
-    // for (int i = 0; i < 4; i++) {
-    //     uart_write(UART0, (msg_size >> (8 * (i))) & 255);
-    // }
-
     if (msg_size > FRAME_MSG_LEN) {
         // Write the first frame to the CAR-SERIAL script (not needed right now)
         // uart_write_str(UART0, frame_dec_start_ptr->msg);
+
+        // Flash the frame of release message to flash
+        write_firmware(flash_address, frame_dec_start_ptr->msg, FRAME_MSG_LEN);
+        flash_address += FRAME_MSG_LEN;
 
         // Numframes is the total number of start frames
         uint32_t num_frames = msg_size % FRAME_MSG_LEN == 0 ? (uint32_t) (msg_size / FRAME_MSG_LEN) : (uint32_t) (msg_size / FRAME_MSG_LEN) + 1;
@@ -374,6 +376,7 @@ void load_firmware(void) {
             uart_write(UART0, TYPE_START);
             frame_index++;
 
+
             // If the frame is the last of the start frames, it's padded
             if (i == num_frames - 1) {
                 // Print out message, but unpadded
@@ -387,21 +390,25 @@ void load_firmware(void) {
     } 
     else if (msg_size == FRAME_MSG_LEN) {
         //writing message type back to fw update test for testing purposes (please remove later)
-        for(uint32_t i = 0; i < FRAME_MSG_LEN; i++) {
-            uart_write(UART0, (uint8_t)frame_dec_start_ptr->msg[i]);
-        }
+         // Flash the frame of release message to flash
+        write_firmware(flash_address, frame_dec_start_ptr->msg, FRAME_MSG_LEN);
+        flash_address += FRAME_MSG_LEN;
+
     } else if (msg_size < FRAME_MSG_LEN) {
-        // Writing release message to python - remove lter
-        for(uint32_t i = 0; i < msg_size; i++) {
-            uart_write(UART0, (uint8_t)frame_dec_start_ptr->msg[i]);
-        }
+        // Print out message, but unpadded
+        uint32_t index = unpad(frame_dec_start_ptr->msg, FRAME_MSG_LEN);
+        // Ending the start message string at the place where the padding starts using a null byte
+        frame_dec_start_ptr->msg[index] = '\0';
+
+        // Flash the frame of release message to flash
+        write_firmware(flash_address, frame_dec_start_ptr->msg, index);
+        flash_address += index;
     }
 
     // ----------------------------- END FIRMWARE START MESSAGE READING -- START OF FIRMWARE BODY FRAMES ---------------------------------- //
 
     // Iterate through body frames
     uint32_t num_frames;
-    void *flash_address = FW_BASE;
 
     // Calculate the expected number of frames that fw update should send
     if (fw_size % FRAME_BODY_LEN == 0) {
