@@ -129,7 +129,7 @@ def start_protect(size: int, version: int, message: str):
         ciphertext, tag = cipher.encrypt_and_digest(data)
         iv = cipher.nonce
         outputMsg.append((iv,tag,ciphertext))
-        j = j + 1\
+        j = j + 1
     # -------------------------------- END -------------------------------- #
 
     

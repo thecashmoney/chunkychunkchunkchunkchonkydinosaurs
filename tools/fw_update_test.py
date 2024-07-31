@@ -12,25 +12,26 @@ import serial
 from util import *
 
 ser = serial.Serial("/dev/ttyACM0", 115200)
-RESP_OK = b"\x03"
+MSG_START = b'\x01'
+MSG_BODY = b'\x02'
+MSG_END = b'\x03'
+RESP_OK = b"\x04"
 RESP_DEC_OK = b"\x05"
-RESP_RESEND = b"\xfc"
-RESP_DEC_ERR = b"\x06"
+RESP_RESEND = b"\x06"
+RESP_DEC_ERR = b"\x07"
+VERSION_ERROR = b'\x08'
+TYPE_ERROR  = b'\x09'
 FRAME_SIZE = 512
 NUM_FRAMES = 1
 FRAMES_SENT = 0
-VERSION_ERROR = b'\xfd'
-TYPE_ERROR  = b'\xfe'
+
 
 #constants from bootloader.h
 IV_LEN = 16
 MAC_LEN = 16
 FRAME_MSG_LEN = 464
 FRAME_BODY_LEN = 476
-DECRYPT_FAIL = b'\x06'
-MSG_START = b'\x66'
-MSG_BODY = b'\x01'
-MSG_END = b'\x02'
+
 
 # WORKING
 def wait_for_update():
