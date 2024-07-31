@@ -142,16 +142,6 @@ def main():
         body_str = b""
         if message_type == MSG_START:
             start_frames_sent += 1
-            msg_len = u32(ser.read(4), endian="little")
-            print("Message len:", msg_len)
-            print("Calculation factor:", start_frames_sent * FRAME_MSG_LEN)
-            if msg_len > start_frames_sent * FRAME_MSG_LEN:
-                for _ in range(FRAME_MSG_LEN):
-                    msg_str += ser.read(1)
-            else:
-                for _ in range((msg_len % FRAME_MSG_LEN) if msg_len % FRAME_MSG_LEN != 0 else FRAME_MSG_LEN):
-                    msg_str += ser.read(1)
-            print("Release message:", msg_str)
         elif message_type == MSG_BODY:
             body_frames_sent += 1
             body_len = u32(ser.read(4), endian="little")
