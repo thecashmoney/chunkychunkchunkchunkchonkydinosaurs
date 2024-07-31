@@ -68,13 +68,12 @@ def send_frame(ser, data, debug=False):
 
     frame = IV + tag + ciphertext
 
-    ser.write(frame)  # Write the frame...
-    print('waiting for a response to sending the frame (in send_frame)')
+    ser.write(frame)  # Write the frame...  
 
-    resp = read_byte()
-    print("Bootloader responded with: ", resp)
+    #resp = read_byte()
+    #print("Bootloader responded with: ", resp)
 
-    return resp
+    #return resp
 
 def read_byte():
     byte = ser.read(1)
@@ -99,9 +98,8 @@ def main():
 
     while (start_frames_sent + body_frames_sent) != num_frames:
         total_sent = (start_frames_sent + body_frames_sent)
-        print("Frames sent:", start_frames_sent + body_frames_sent)
         current_frame = data[total_sent * 512: (total_sent + 1) * 512]
-        response = send_frame(ser, current_frame) 
+        send_frame(ser, current_frame) 
     
 
         # if(response != RESP_OK):
@@ -116,9 +114,9 @@ def main():
 
         #print(response)
         while decrypt_response!= RESP_DEC_OK:
-            print("Resending: response: ", response)
+            print("Resending")
             if decrypt_response == RESP_RESEND:
-                response = send_frame(ser, current_frame)
+                send_frame(ser, current_frame)
                 decrypt_response = read_byte()
                 print("Decrypt status:", decrypt_response)
             elif decrypt_response == RESP_DEC_ERR:

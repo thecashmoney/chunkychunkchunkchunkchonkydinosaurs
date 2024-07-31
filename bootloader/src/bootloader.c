@@ -194,7 +194,7 @@ int unpad(uint8_t* plaintext, uint32_t plaintext_length)
 * Sends the ciphertext to decrypt_ciphertext()
 */
 // Reads the packets sent by fw_update.py 
-uint32_t read_frame(generic_frame *frame) 
+void read_frame(generic_frame *frame) 
 {
     // read the IV and tag and store them in the generic_frame struct
     receive_IV_tag(frame->IV, frame->tag); 
@@ -246,8 +246,7 @@ void load_firmware(void) {
     pltxt_end_frame *frame_dec_end_ptr = (pltxt_end_frame *) frame_dec_ptr;
 
     // Sending the result (either OK msg or NOT OK Message) of reading the first START frame
-    result = read_frame(frame_enc_ptr);
-    uart_write(UART0, result);
+    read_frame(frame_enc_ptr);
 
     //Decrypt boilerplate :fire: :fire: :fire:
     int dec_result = decrypt(frame_enc_ptr, &frame_index, frame_dec_ptr->plaintext);
@@ -263,9 +262,7 @@ void load_firmware(void) {
         while (tries <= MAX_DECRYPTS && (dec_result != 0)) 
         {
             uart_write(UART0, INTEGRITY_ERROR);
-            result = read_frame(frame_enc_ptr);
-            //result = value of read_frame operation
-            uart_write(UART0, result);
+            read_frame(frame_enc_ptr);
             dec_result = decrypt(frame_enc_ptr, &frame_index, frame_dec_ptr->plaintext);
             tries++;
         }
@@ -345,7 +342,7 @@ void load_firmware(void) {
         
         for (uint32_t i = 1; i < num_frames; i++) {
             // Read in the next frame + write success/fail message to fw update
-            uart_write(UART0, read_frame(frame_enc_ptr));
+            read_frame(frame_enc_ptr);
 
             //Decrypt boilerplate :fire: :fire: :fire:
             dec_result = decrypt(frame_enc_ptr, &frame_index, frame_dec_ptr->plaintext);
@@ -357,9 +354,7 @@ void load_firmware(void) {
                 tries = 1;
                 while (tries <= MAX_DECRYPTS && (dec_result != 0)) {
                     uart_write(UART0, INTEGRITY_ERROR);
-                    result = read_frame(frame_enc_ptr);
-                    //result = value of read_frame operation
-                    uart_write(UART0, result);
+                    read_frame(frame_enc_ptr);
                     dec_result = decrypt(frame_enc_ptr, &frame_index, frame_dec_ptr->plaintext);
                     tries++;
                 }
@@ -433,7 +428,7 @@ void load_firmware(void) {
 
     for (int i = 0; i < num_frames; i++) {
         // Read in the next frame and write a success/fail message to fw update
-        uart_write(UART0, read_frame(frame_enc_ptr));
+        read_frame(frame_enc_ptr);
         
         //Decryption - save result of decryption operation in dec_result
         dec_result = decrypt(frame_enc_ptr, &frame_index, frame_dec_ptr->plaintext);
@@ -445,9 +440,7 @@ void load_firmware(void) {
             tries = 1;
             while (tries <= MAX_DECRYPTS && (dec_result != 0)) {
                 uart_write(UART0, INTEGRITY_ERROR);
-                result = read_frame(frame_enc_ptr);
-                //result = value of read_frame operation
-                uart_write(UART0, result);
+                read_frame(frame_enc_ptr);
                 dec_result = decrypt(frame_enc_ptr, &frame_index, frame_dec_ptr->plaintext);
                 tries++;
             }
@@ -504,8 +497,7 @@ void load_firmware(void) {
     
     /* -------------------------------- End of code for reading body frames, starting read for end frame -------------------------------- */
     // Read in the next frame
-    result = read_frame(frame_enc_ptr);
-    uart_write(UART0, result);
+    read_frame(frame_enc_ptr);
 
     //Decryption - save result of decryption operation in dec_result
     dec_result = decrypt(frame_enc_ptr, &frame_index, frame_dec_ptr->plaintext);
@@ -517,9 +509,7 @@ void load_firmware(void) {
         tries = 1;
         while (tries <= MAX_DECRYPTS && (dec_result != 0)) {
             uart_write(UART0, INTEGRITY_ERROR);
-            result = read_frame(frame_enc_ptr);
-            /* result = value of read_frame operation */
-            uart_write(UART0, result);
+            read_frame(frame_enc_ptr);
             dec_result = decrypt(frame_enc_ptr, &frame_index, frame_dec_ptr->plaintext);
             tries++;
         }
