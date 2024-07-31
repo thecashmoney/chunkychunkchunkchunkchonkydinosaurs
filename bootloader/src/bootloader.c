@@ -336,7 +336,7 @@ void load_firmware(void) {
             uart_write(UART0, read_frame(frame_enc_ptr));
 
             //Decrypt boilerplate :fire: :fire: :fire:
-            dec_result = decrypt(frame_enc_ptr, &frame_index, frame_dec_ptr->plaintext);
+            dec_result = decrypt(frame_enc_ptr, &frame_index, frame_dec_ptr->plaintext); 
 
             //While decryption result is not 0, resend the frame until max decrypts is hit. Otherwise write an OK message.
             if (dec_result == 0) {
@@ -421,7 +421,7 @@ void load_firmware(void) {
 
     for (int i = 0; i < num_frames; i++) {
         // Read in the next frame and write a success/fail message to fw update
-        uart_write(UART0, read_frame(frame_enc_ptr));
+        read_frame(frame_enc_ptr);
         
         //Decryption - save result of decryption operation in dec_result
         dec_result = decrypt(frame_enc_ptr, &frame_index, frame_dec_ptr->plaintext);

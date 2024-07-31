@@ -1,0 +1,9 @@
+#ifndef SECRETS_H
+#define SECRETS_H
+
+// bl_build.py
+#define aesKey
+
+#define AESKEY "\x4d\xc2\xb8\x68\x5f\x73\x12\x95\xa8\x1a\x03\x52\xef\x1f\x34\xd7"
+
+#endif

@@ -22,6 +22,8 @@ def main():
             return
         for i in range(0, len(out) // 512):
             frames.append(out[i * 512: (i + 1) * 512])
+        print(frames[1])
+        return
         print("Received ", len(frames), " frames.")
 
     with open("../secret_build_output.txt", "r") as keyfile:
