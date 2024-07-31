@@ -326,14 +326,11 @@ void load_firmware(void) {
     frame_index++;
 
     //Writes message size - remove later
-    for (int i = 0; i < 4; i++) {
-        uart_write(UART0, (msg_size >> (8 * (i))) & 255);
-    }
+    // for (int i = 0; i < 4; i++) {
+    //     uart_write(UART0, (msg_size >> (8 * (i))) & 255);
+    // }
 
     if (msg_size > FRAME_MSG_LEN) {
-        for(uint32_t i = 0; i < FRAME_MSG_LEN; i++) {
-            uart_write(UART0, (uint8_t)frame_dec_start_ptr->msg[i]);
-        }
         // Write the first frame to the CAR-SERIAL script (not needed right now)
         // uart_write_str(UART0, frame_dec_start_ptr->msg);
 
@@ -377,26 +374,14 @@ void load_firmware(void) {
             uart_write(UART0, TYPE_START);
             frame_index++;
 
-            for (int i = 0; i < 4; i++) {
-                uart_write(UART0, (msg_size >> (8 * (i))) & 255);
-            }
-
             // If the frame is the last of the start frames, it's padded
             if (i == num_frames - 1) {
                 // Print out message, but unpadded
                 uint32_t index = unpad(frame_dec_start_ptr->msg, FRAME_MSG_LEN);
                 // Ending the start message string at the place where the padding starts using a null byte
                 frame_dec_start_ptr->msg[index] = '\0';
-                
-                // Printing unpadded message - Remove Later
-                for(uint32_t i = 0; i < index; i++) {
-                    uart_write(UART0, (uint8_t)frame_dec_start_ptr->msg[i]);
-                }
             } else {
                 // Print out the message - Remove Later
-                for(uint32_t i = 0; i < FRAME_MSG_LEN; i++) {
-                    uart_write(UART0, (uint8_t)frame_dec_start_ptr->msg[i]);
-                }
             }
         }
     } 
