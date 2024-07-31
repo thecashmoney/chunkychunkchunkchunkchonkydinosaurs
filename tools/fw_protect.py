@@ -3,203 +3,254 @@
 # Copyright 2024 The MITRE Corporation. ALL RIGHTS RESERVED
 # Approved for public release. Distribution unlimited 23-02181-25.
 
+"""
+Firmware Bundle-and-Protect Tool
+
+7/22/24 - Elliott Jang and Oliver Beresford
+Part 1: Start message encryption
+- start_protect(size (int), version (int), message(str))
+- Finds length of message, and calculates number of frames required
+- Adds in required data headers (look at function for more info)
+- Add in release message in increments of 464 bytes
+- Encrypt whole chonk, using a frame number as the AAD
+- Write every chonk to protected_output.bin
+- Return frame number that next part should start off of
+
+Part 2: Data message encryption: 
+- Read over GCM key, index
+- Split into chonks first and then encrypt each chonk
+- Each data is 476 bytes
+- 4 bytes of message code
+- Continue to use frame counter for AAD
+- Return next frame number
+
+Part 3: End message encryption
+- Read and stores the AES-GCM key
+- Pads the end frame with ISO-7816
+- Encrypts the end frame
+- Writes the ciphertext to protected_output
+"""
 
 import argparse
 from pwn import *
-import time
-import serial
-
-from util import *
-
-ser = serial.Serial("/dev/ttyACM0", 115200)
-MSG_START = b'\x01'
-MSG_BODY = b'\x02'
-MSG_END = b'\x03'
-RESP_OK = b"\x03"
-RESP_DEC_OK = b"\x05"
-RESP_RESEND = b"\x06"
-RESP_DEC_ERR = b"\x07"
-VERSION_ERROR = b'\x08'
-TYPE_ERROR  = b'\x09'
-FRAME_SIZE = 512
-NUM_FRAMES = 1
-FRAMES_SENT = 0
+from Crypto.Util.Padding import pad, unpad
+import json
+from base64 import b64encode
+from base64 import b64decode
+from Crypto.Cipher import AES
+from Crypto.Random import get_random_bytes
 
 
-#constants from bootloader.h
-IV_LEN = 16
-MAC_LEN = 16
-FRAME_MSG_LEN = 464
-FRAME_BODY_LEN = 476
+# Setting constants for easy packet redesign
+RMmax = 464  # Release msg maximum size
+DATAmax = 476  # Data msg maximum size
 
 
-# WORKING
-def wait_for_update():
-    ser.write(b"U")
-    print("Waiting for bootloader to enter update mode...")
-    ctr = 1
-    no =  ser.read(1).decode()
-    while no != "U":
-        print(f"byte: {ctr}")
-        print("One of the initial bytes:", no)
-        ctr += 1
-        no = ser.read(1).decode()
-    print("Bootloader responded with a", no)
+# Defines a function for ceiling division (always round up)
+def ceildiv(a, b):
+    return -(a // -b)
 
-def calc_num_frames(filedata):
-    if len(filedata) % FRAME_SIZE == 0:
-        frames = len(filedata) // FRAME_SIZE
-        return frames
-    else:
-        print("Something is wrong with the firmware protected file.")
+# This is the "main" function
+def protect_firmware(infile, version, message):
 
-def send_frame(ser, data, debug=False):
-    # print("SEND FRAME IS RUNNING")
-    IV = data[0:16]
-    tag = data[16:32]
-    ciphertext = data[32:]
-
-    # print(len(IV))
-    # print(len(tag))
-    # frame = IV + tag + ciphertext
-    # print("IV: ", IV)
-    # print("tag: ", tag)
-    # print("ctext: ", ciphertext)
-
-    frame = IV + tag + ciphertext
-
-    ser.write(frame)  # Write the frame...
-    print('waiting for a response to sending the frame (in send_frame)')
-
-    resp = read_byte()
-    print("Bootloader responded with: ", resp)
-
-    return resp
-
-def read_byte():
-    byte = ser.read(1)
-    while byte == b'\x00':
-        byte = ser.read(1)
-        print("null byte >:(")
-    return byte
-    #cringe
-
-def main():
-    start_frames_sent = 0
-    num_frames = 0
-    body_frames_sent = 0
-
-    f = open("protected_output.bin", "rb")
-    data = f.read()
-    f.close()
-    num_frames = calc_num_frames(data)
-
-    print("Number of frames:", num_frames)
-    wait_for_update()
-
-    while (start_frames_sent + body_frames_sent) != num_frames:
-        total_sent = (start_frames_sent + body_frames_sent)
-        print("Frames sent:", start_frames_sent + body_frames_sent)
-        current_frame = data[total_sent * 512: (total_sent + 1) * 512]
-        response = send_frame(ser, current_frame) 
+    # Load firmware binary from infile
+    with open(infile, "rb") as fp:
+        firmware = fp.read()
+    # calls start_protect to protect the start message frames
+    index = start_protect(len(firmware), version, message)
     
+    # calls protect_body to protect the data message frames
+    index = protect_body(index, firmware)
 
-        # if(response != RESP_OK):
-        #     #screaming sobbing dying
-        #     send_frame(ser, current_frame)
-            #sends back the current frame if the response is not OK
-
-        # Reads 0 if successful decryption, or RESP_RESEND if not
-        decrypt_response = read_byte()
-        print("Decrypt status:", decrypt_response)
+    # calls protect_end to protect the end message frames
+    protect_end(index)
+    #print("Number of frames:", protect_end(index) + 1)
 
 
-        #print(response)
-        while decrypt_response!= RESP_DEC_OK:
-            print("Resending: response: ", response)
-            if decrypt_response == RESP_RESEND:
-                response = send_frame(ser, current_frame)
-                decrypt_response = read_byte()
-                print("Decrypt status:", decrypt_response)
-            elif decrypt_response == RESP_DEC_ERR:
-                print("Potential attack. Aborting.")
-                return
-            else:
-                print("Bootloader error encountered. Responded with", decrypt_response)
-                return
+# Protects the start message
+def start_protect(size: int, version: int, message: str):
+    """
+    Start message creation and encryption
+    
+    First 4 byte: type (0x04)
+    Next 4 bytes: version number
+    Next 4 bytes: size (0x04)
+    Next 4 bytes: Release message size
+    Next 464 bytes: Release message
 
-            
-        
-        # reading message type
-        message_type = read_byte()
-        print("Message type: ", message_type)
-        if message_type == VERSION_ERROR:
-            print("Go kill yourself")
-            return
-        elif message_type == TYPE_ERROR:
-            print("Type error")
-            return
+    for last frame:
+    ...
+    last 463 bytes: Release message
+    Padded with ISO-7816
+    """
 
-        msg_str = b""
-        body_str = b""
-        if message_type == MSG_START:
-            start_frames_sent += 1
-            msg_len = u32(ser.read(4), endian="little")
-            print("Message len:", msg_len)
-            print("Calculation factor:", start_frames_sent * FRAME_MSG_LEN)
-            if msg_len > start_frames_sent * FRAME_MSG_LEN:
-                for _ in range(FRAME_MSG_LEN):
-                    msg_str += ser.read(1)
-            else:
-                for _ in range((msg_len % FRAME_MSG_LEN) if msg_len % FRAME_MSG_LEN != 0 else FRAME_MSG_LEN):
-                    msg_str += ser.read(1)
-            print("Release message:", msg_str)
-        elif message_type == MSG_BODY:
-            body_frames_sent += 1
-            body_len = u32(ser.read(4), endian="little")
-            if body_len > body_frames_sent * FRAME_BODY_LEN:
-                for _ in range(FRAME_BODY_LEN):
-                    body_str += ser.read(1)
-            else:
-                for _ in range((body_len % FRAME_BODY_LEN) if body_len % FRAME_BODY_LEN != 0 else FRAME_BODY_LEN):
-                    body_str += ser.read(1)
-            print("Firmware:", body_str)
-        elif message_type == MSG_END:
-            print("END MESSAGE TYPE LOL: ", message_type)
-            return
+    # Turns message into a bytearray and stores it in msgn
+    msg = bytearray(message.encode('utf-8'))
+
+
+    metadata = []  # stores start_message metadata
+    rmsize = len(msg)  # stores the release msg size
+
+    # msg type, version number, data size, release msg size
+    sizes = p32(1, endian='little') + p32(version, endian='little') + p32(size, endian='little') + p32(rmsize, endian='little')
+    
+    index = 0
+
+    # -------------------------------- WRITE MESSAGE INTO METADATA -------------------------------- #
+    while index < len(msg):
+        if (len(msg) - index) < RMmax:
+            # Pad the data if there is less than RMmax bytes left of plaintxt
+            plaintext = pad(sizes + msg[index:], 480, style='iso7816')
+            metadata.append(plaintext)
+
         else:
-            print("noooooooooooooooooooooooooooooooooooooooooooo", message_type)
-        # print(ser.read(1))
-        # print(message_type)
-    ser.close()
+            # Add RMmax bytes of plaintext
+            metadata.append(sizes + msg[index:index + RMmax])
+
+        index += RMmax
+    # -------------------------------- END -------------------------------- #
 
 
+    # -------------------------------- ENCRYPTION -------------------------------- #
+    with open("../secret_build_output.txt", "r") as keyfile:
+        key = bytearray([ord(c) for c in keyfile.read(16)])
+    outputMsg = []
 
-def test():
-    wait_for_update()
-    f = open("protected_output.bin", "rb")
-    total_data = f.read()
-    original_data = total_data[:512]
-    new_data = b''
+    j = 0
+    for i in metadata:
+        header = p16(j)
+        data = i
+
+        cipher = AES.new(key, AES.MODE_GCM)
+
+        cipher.update(header)
+
+        #encrypt data
+        ciphertext, tag = cipher.encrypt_and_digest(data)
+        iv = cipher.nonce
+        outputMsg.append((iv,tag,ciphertext))
+        j = j + 1
+    # -------------------------------- END -------------------------------- #
+
     
-    response = send_frame(ser, total_data[:512])
-    if response == b'\x00':
-        ser.read(1)
-        ser.read(1)
-        for _ in range(512):
-            value = ser.read(1)
-            #print(value, end="")
-            new_data += value
-    else:
-        print("Error response", response)
+    # -------------------------------- WRITE CIPHERTEXT TO protected_output -------------------------------- #
+    with open("protected_output.bin", "wb") as f:
+        for i in outputMsg:
+            iv, tag, ciphertext = i
+            f.write(iv + tag + ciphertext)
 
-    print()
-    print("Original:", original_data)
-    print("New:", new_data)
-    print("Are they equal?", original_data == new_data)
+    return ceildiv(len(msg),RMmax)
+    # -------------------------------- END -------------------------------- #
+
+
+# Protects the data msg frames 
+def protect_body(frame_index: int, data: bytes):
+    """
+    Body message creation and encryption
+    
+    First 4 byte: type (0x04)
+    Next 476 bytes: Data
+    Padded with ISO-7816
+    """
+
+    # This is to hold all the frames
+    body = bytearray(0)
+
+    # Reads the file containing the AES-GCM key
+    with open("../secret_build_output.txt", "r") as keyfile:
+        key = bytearray([ord(c) for c in keyfile.read(16)])
+
+    index = 0
+    
+    # This while loop encrypts each 32 byte chunk of data
+    while index < len(data):
+        # Create the frame buffer
+        frame = bytearray(512)
+
+        # Create the IV / nonce
+        iv = get_random_bytes(16)
+        frame[0:16] = iv
+
+        ### Creating plaintext
+        # Adding frame type code
+        plaintext = bytearray(0)
+        plaintext += p32(2, endian='little')
+
+        # Adding firmware plaintext
+        if len(data) - index < DATAmax:
+            # Pad the data if there is less than DATAmax bytes left of plaintxt
+            plaintext += data[index:]
+            plaintext = pad(plaintext, 480, style='iso7816')    
+        else:
+            # Add DATAmax bytes of plaintext
+            plaintext += data[index:index + DATAmax]
+
+        index += DATAmax
+
+        # Encrypt the data
+        cipher = AES.new(key, AES.MODE_GCM, nonce=iv, mac_len=16)
+        cipher.update(p16(frame_index))
+        ciphertext, tag = cipher.encrypt_and_digest(plaintext)
+
+        # Add the tag to the frame
+        frame[16:32] = tag
+
+        # Add the ciphertext to the frame
+        frame[32:] = ciphertext
+
+        # Add the frame to the body
+        body += frame
+
+        # Adding one frame to the total number of them
+        frame_index += 1
+
+    # Putting all the data frames in the protected output thing
+    with open("protected_output.bin", "ab") as f:
+        f.write(body)
+
+    # Return the entire protected firmware
+    return frame_index
+
+
+# Protects the end_msg frames
+def protect_end(frame_index):
+    """
+    End message creation and encryption
+    
+    First 4 byte: type (0x04)
+    Padded with ISO-7816
+    """
+    
+    # Opens the AES-GCM key
+    with open("../secret_build_output.txt", "r") as keyfile:
+        key = bytearray([ord(c) for c in keyfile.read(16)])
+
+    # Encrypting the end frame and padding it
+    data = pad(p8(3, endian='little'), 480, style='iso7816')
+    cipher = AES.new(key, AES.MODE_GCM)
+    cipher.update(p16(frame_index))
+
+    # -------------------------------- ENCRYPT DATA -------------------------------- #
+    ciphertext, tag = cipher.encrypt_and_digest(data)
+    iv = cipher.nonce
+    # -------------------------------- END -------------------------------- #
+    
+    # -------------------------------- WRITE CIPHERTEXT TO protected_output -------------------------------- #
+    with open("protected_output.bin", "ab") as f:
+        f.write(iv + tag + ciphertext)
+    # -------------------------------- END -------------------------------- #
+    
+    return frame_index
 
 if __name__ == "__main__":
-    #calc num frames works
-    main()
-
+    # -------------------------------- OG (Template) Code -------------------------------- #
+    parser = argparse.ArgumentParser(description="Firmware Update Tool")
+    parser.add_argument("--infile", help="Path to the firmware image to protect.", required=True)
+    parser.add_argument("--version", help="Version number of this firmware.", required=True)
+    parser.add_argument("--message", help="Release message for this firmware.", required=True)
+    args = parser.parse_args()
+    # -------------------------------- END -------------------------------- #
     
+    
+    # Calls protect_firmware function
+    protect_firmware(infile=args.infile, version=int(args.version), message=args.message)

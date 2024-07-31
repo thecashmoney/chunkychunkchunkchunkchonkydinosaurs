@@ -1,157 +1,156 @@
 #!/usr/bin/env python
-
 # Copyright 2024 The MITRE Corporation. ALL RIGHTS RESERVED
 # Approved for public release. Distribution unlimited 23-02181-25.
 
-"""
-Firmware Updater Tool
 
-A frame consists of two sections:
-1. Two bytes for the length of the data section
-2. A data section of length defined in the length section
+#final FW update: removed print statements + reminder to document this better
 
-[ 0x02 ]  [ variable ]
---------------------
-| Length | Data... |
---------------------
-
-In our case, the data is from one line of the Intel Hex formated .hex file
-
-We write a frame to the bootloader, then wait for it to respond with an
-OK message so we can write the next frame. The OK message in this case is
-just a zero
-"""
 
 import argparse
 from pwn import *
 import time
 import serial
 
+# Remove print statements
+# Flash release message
 from util import *
+
 
 ser = serial.Serial("/dev/ttyACM0", 115200)
 
-RESP_OK = b"\x00"
+
+#CONSTANTS FOR MESSAGE/ERROR CODES
+STOP = b'\x03'
+RESP_OK = b"\x04"
+RESP_DEC_OK = b"\x05"
+RESP_RESEND = b"\x06"
+RESP_DEC_ERR = b"\x07"
+VERSION_ERROR = b'\x08'
+TYPE_ERROR  = b"\x09"
+
+
+#frame size: constant 512 bytes
 FRAME_SIZE = 512
 
+
+#constants from bootloader.h
+IV_LEN = 16
+MAC_LEN = 16
+FRAME_MSG_LEN = 464
+FRAME_BODY_LEN = 476
+
+
+# Establishes a serial connection with bootloader.c
 def wait_for_update():
-    ser.write(b"U")
-    print("Waiting for bootloader to enter update mode...")
-    while ser.read(1).decode() != "U":
-        pass
-
-def send_IV_and_tag(ser, filepath, debug=False):
-    #open the protected_output.bin file and read its contents to get and send encrypted data
-    f = open(filepath, "rb")
-    data = f.read(FRAME_SIZE)
-
-    #IV is first 16 bytes, Tag is next 16 bytes
-    IV = data[0:16]
-    tag = data[16:32]
-
-    #Write IV and tag to serial
-    ser.write(IV)
-    ser.write(tag)
-
-    # Wait for an OK from the bootloader.
-    resp = ser.read(1)
-    if resp != RESP_OK:
-        raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(resp)))
-
-def send_ciphertext(ser, filepath, debug=False):
-    f = open(filepath, "rb")
-    data = f.read(512)
-
-    ciphertext = data[32:]
-    ser.write(ciphertext)
-
-    # Wait for an OK from the bootloader.
-    resp = ser.read(1)
-    #print("Resp: ", resp)
-    if resp != RESP_OK:
-        raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(resp)))
-
-# def send_metadata(ser, metadata, debug=False):
-#     assert(len(metadata) == 4)
-#     version = u16(metadata[:2], endian='little')
-#     size = u16(metadata[2:], endian='little')
-#     print(f"Version: {version}\nSize: {size} bytes\n")
-
-#     # Handshake for update
-#     ser.write(b"U")
-
-#     print("Waiting for bootloader to enter update mode...")
-#     while ser.read(1).decode() != "U":
-#         print("got a byte")
-#         pass
-
-#     # Send size and version to bootloader.
-#     if debug:
-#         print(metadata)
-
-#     ser.write(metadata)
-
-#     # Wait for an OK from the bootloader.
-#     resp = ser.read(1)
-#     if resp != RESP_OK:
-#         raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(resp)))
+   ser.write(b"U")
+   print("Waiting for bootloader to enter update mode...")
+   resp =  ser.read(1).decode()
+   while resp != "U":
+       resp = ser.read(1).decode()
+   print("Connection established...")
 
 
-def send_frame(ser, frame, debug=False):
-    ser.write(frame)  # Write the frame...
-
-    if debug:
-        print_hex(frame)
-
-    resp = ser.read(1)  # Wait for an OK from the bootloader
-
-    time.sleep(0.1)
-
-    if resp != RESP_OK:
-        raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(resp)))
-
-    if debug:
-        print("Resp: {}".format(ord(resp)))
+# Calculate the total number of frames that are to be sent
+def calc_num_frames(filedata):
+   if len(filedata) % FRAME_SIZE == 0:
+       frames = len(filedata) // FRAME_SIZE
+       return frames
+   else:
+       print("Something is wrong with the protected firmware file...")
 
 
-def update(ser, infile, debug):
-    # Open serial port. Set baudrate to 115200. Set timeout to 2 seconds.
-    with open(infile, "rb") as fp:
-        firmware_blob = fp.read()
+# Send one frame to bootloader.c
+def send_frame(ser, data, debug=False):
+   # Define IV, Tag, and Ciphertext as slices of provided data (512 bytes provided)
+   IV = data[0:16]
 
-    metadata = firmware_blob[:4]
-    firmware = firmware_blob[4:]
+   tag = data[16:32]
 
-    send_metadata(ser, metadata, debug=debug)
-
-    for idx, frame_start in enumerate(range(0, len(firmware), FRAME_SIZE)):
-        data = firmware[frame_start : frame_start + FRAME_SIZE]
-
-        # Construct frame.
-        frame = p16(len(data), endian='big') + data
-
-        send_frame(ser, frame, debug=debug)
-        print(f"Wrote frame {idx} ({len(frame)} bytes)")
-
-    print("Done writing firmware.")
-
-    # Send a zero length payload to tell the bootlader to finish writing it's page.
-    ser.write(p16(0x0000, endian='big'))
-    resp = ser.read(1)  # Wait for an OK from the bootloader
-    if resp != RESP_OK:
-        raise RuntimeError("ERROR: Bootloader responded to zero length frame with {}".format(repr(resp)))
-    print(f"Wrote zero length frame (2 bytes)")
-
-    return ser
+   ciphertext = data[32:]
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Firmware Update Tool")
+   #frame is the combination of IV, tag, and ciphertext
+   frame = IV + tag + ciphertext
 
-    parser.add_argument("--port", help="Does nothing, included to adhere to command examples in rule doc", required=False)
-    parser.add_argument("--firmware", help="Path to firmware image to load.", required=False)
-    parser.add_argument("--debug", help="Enable debugging messages.", action="store_true")
-    args = parser.parse_args()
 
-    update(ser=ser, infile=args.firmware, debug=args.debug)
+   ser.write(frame)  # Write the frame to bootloader.c
+   # resp = read_byte()
+   # return resp
+
+
+# Function to read one (non null) byte from serial
+def read_byte():
+   byte = ser.read(1)
+   while byte == b'\x00':
+       byte = ser.read(1)
+   return byte
+
+
+# Main function: sends all frames from protected_output.bin to bootloader.c, one frame at a time
+def main():
+    # Defining variables for number of start msg frames sent, total number of frames, and number of body frames sent
+    frames_sent = 0
+    num_frames = 0
+
+    # open protected firmware file to obtain metadata and firmware data
+    f = open("protected_output.bin", "rb")
+    data = f.read()
+    f.close()
+
+    # calculate the number of frames total (for metadata and firmware data)
+    num_frames = calc_num_frames(data)
+
+    # call wait for update to establish a connection with bootloader
+    wait_for_update()
+
+
+   # cycle through frames, send frames to bootloader.c
+    while (frames_sent) != num_frames:
+        current_frame = data[frames_sent * 512: (frames_sent + 1) * 512]
+        send_frame(ser, current_frame)
+        frames_sent += 1
+
+
+        # Determine whether frame resend/abort is needed.
+        # Reads 0 if successful decryption, or RESP_RESEND if not
+        decrypt_response = read_byte()
+        print("I want to end my life, but the decrypt response is: ", decrypt_response)
+
+
+
+        while decrypt_response != RESP_DEC_OK:
+            if decrypt_response == RESP_RESEND:
+                send_frame(ser, current_frame)
+                decrypt_response = read_byte()
+            elif decrypt_response == RESP_DEC_ERR:
+                print("Potential attack. Aborting.")
+                return
+            else:
+                print("Bootloader error encountered.")
+                return
+
+        # checking for potential error/attack
+        frame_status = read_byte()
+        print("FRAME STATUS RAHHHH", frame_status)
+        if frame_status == TYPE_ERROR or frame_status == VERSION_ERROR:
+            print("error encountered")
+            return
+        elif frame_status == STOP:
+            print("Complete")
+            return
+        elif frame_status != RESP_OK:
+            print("Unknown frame status, terminating")
+            return 
+
+
     ser.close()
+
+
+# run main function
+if __name__ == "__main__":
+   main()
+
+
+
+
+
