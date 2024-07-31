@@ -329,12 +329,10 @@ void load_firmware(void) {
     frame_index++;
 
     if (msg_size > FRAME_MSG_LEN) {
+
         // Write the first frame to the CAR-SERIAL script (not needed right now)
         // uart_write_str(UART0, frame_dec_start_ptr->msg);
 
-        // Flash the frame of release message to flash
-        write_firmware(flash_address, frame_dec_start_ptr->msg, FRAME_MSG_LEN);
-        flash_address += FRAME_MSG_LEN;
 
         // Numframes is the total number of start frames
         uint32_t num_frames = msg_size % FRAME_MSG_LEN == 0 ? (uint32_t) (msg_size / FRAME_MSG_LEN) : (uint32_t) (msg_size / FRAME_MSG_LEN) + 1;
@@ -391,18 +389,12 @@ void load_firmware(void) {
     else if (msg_size == FRAME_MSG_LEN) {
         //writing message type back to fw update test for testing purposes (please remove later)
          // Flash the frame of release message to flash
-        write_firmware(flash_address, frame_dec_start_ptr->msg, FRAME_MSG_LEN);
-        flash_address += FRAME_MSG_LEN;
 
     } else if (msg_size < FRAME_MSG_LEN) {
         // Print out message, but unpadded
         uint32_t index = unpad(frame_dec_start_ptr->msg, FRAME_MSG_LEN);
         // Ending the start message string at the place where the padding starts using a null byte
         frame_dec_start_ptr->msg[index] = '\0';
-
-        // Flash the frame of release message to flash
-        write_firmware(flash_address, frame_dec_start_ptr->msg, index);
-        flash_address += index;
     }
 
     // ----------------------------- END FIRMWARE START MESSAGE READING -- START OF FIRMWARE BODY FRAMES ---------------------------------- //
