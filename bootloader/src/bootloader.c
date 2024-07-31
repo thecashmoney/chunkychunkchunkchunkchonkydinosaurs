@@ -66,6 +66,7 @@ int write_firmware(void *mem_addr, uint8_t *firmware, uint32_t data_len);
 #define INTEGRITY_ERROR ((unsigned char)0x06)
 #define VERSION_ERROR ((unsigned char)0x08)
 #define TYPE_ERROR ((unsigned char)0x09)
+#define STOP ((unsigned char)0x10)
 
 // Two characters to start off interaction between bl and update
 #define UPDATE ((unsigned char)'U')
@@ -324,7 +325,7 @@ void load_firmware(void) {
 
     //writes the frame type
     //uart_write(UART0, frame_dec_start_ptr->type);
-    uart_write(UART0, TYPE_START);
+    uart_write(UART0, OK);
     //change the type not to be hard-coded
     frame_index++;
 
@@ -371,7 +372,7 @@ void load_firmware(void) {
             }
             
             //Writing message type back to fw update test for testing purposes (please remove later)
-            uart_write(UART0, TYPE_START);
+            uart_write(UART0, OK);
             frame_index++;
 
 
@@ -445,7 +446,7 @@ void load_firmware(void) {
             return;
         }
 
-        uart_write(UART0, TYPE_BODY);
+        uart_write(UART0, OK);
 
         // Writing a frame of the firmware to flash 
 
@@ -501,9 +502,7 @@ void load_firmware(void) {
     }
 
     /* Sending back the end frame type to the python - remove later */ 
-    uart_write(UART0, TYPE_END);
-
-    
+    uart_write(UART0, STOP);
 }
 
 /* Erase a given number of pages starting from the page address */ 
