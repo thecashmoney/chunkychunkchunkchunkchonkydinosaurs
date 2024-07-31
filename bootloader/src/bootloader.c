@@ -233,9 +233,10 @@ void load_firmware(void) {
     // Erases 30 pages of memory to write the stuff
     erase_pages(flash_address, 30);
 
-    //params needed: generic_frame *frame, uint32_t *frame_num, uint8_t *plaintext
+    // params needed: generic_frame *frame, uint32_t *frame_num, uint8_t *plaintext
     uint32_t tries = 0;
     uint32_t result = 0;
+    uint32_t index = 0;
     
     //Generic frame boilerplate :speaking_head: :fire: :100:
     generic_frame f;
@@ -329,79 +330,87 @@ void load_firmware(void) {
     //change the type not to be hard-coded
     frame_index++;
 
-    if (msg_size > FRAME_MSG_LEN) {
-
-        // Write the first frame to the CAR-SERIAL script (not needed right now)
-        // uart_write_str(UART0, frame_dec_start_ptr->msg);
 
 
-        // Numframes is the total number of start frames
-        uint32_t num_frames = msg_size % FRAME_MSG_LEN == 0 ? (uint32_t) (msg_size / FRAME_MSG_LEN) : (uint32_t) (msg_size / FRAME_MSG_LEN) + 1;
-        
-        for (uint32_t i = 1; i < num_frames; i++) {
-            // Read in the next frame + write success/fail message to fw update
-            read_frame(frame_enc_ptr);
+    // Numframes is the total number of start frames
+    uint32_t num_frames = msg_size % FRAME_MSG_LEN == 0 ? (uint32_t) (msg_size / FRAME_MSG_LEN) : (uint32_t) (msg_size / FRAME_MSG_LEN) + 1;
+    uint8_t has_padding = msg_size % FRAME_MSG_LEN != 0;
 
-            //Decrypt boilerplate :fire: :fire: :fire:
-            dec_result = decrypt(frame_enc_ptr, &frame_index, frame_dec_ptr->plaintext);
+    if (msg_size <= FRAME_MSG_LEN) {
+        if (has_padding) {
+            // Find index of the padding in the release message string
+            index = unpad(frame_dec_start_ptr->msg, msg_size);
 
-            //While decryption result is not 0, resend the frame until max decrypts is hit. Otherwise write an OK message.
-            if (dec_result == 0) {
-                uart_write(UART0, OK_DECRYPT);
-            } else {
-                tries = 1;
-                while (tries <= MAX_DECRYPTS && (dec_result != 0)) {
-                    uart_write(UART0, INTEGRITY_ERROR);
-                    read_frame(frame_enc_ptr);
-                    dec_result = decrypt(frame_enc_ptr, &frame_index, frame_dec_ptr->plaintext);
-                    tries++;
-                }
-                if (dec_result != 0) {
-                    // Decrypt failed more than the max number of times we allow
-                    uart_write(UART0, DECRYPT_FAIL);
-                    return;
-                } else {
-                    // Decrypt successful
-                    uart_write(UART0, OK_DECRYPT);
-                }
+            // Writing the release message to after where the firmware will be
+            write_firmware(flash_address + fw_size, frame_dec_start_ptr->msg, index);
+            flash_address += index;
+        } else {
+            // Writing the release message to after where the firmware will be
+            write_firmware(flash_address + fw_size, frame_dec_start_ptr->msg, FRAME_MSG_LEN);
+            flash_address += FRAME_MSG_LEN;
+        }
+    } else {
+        // Writing the release message to after where the firmware will be
+        write_firmware(flash_address + fw_size, frame_dec_start_ptr->msg, FRAME_MSG_LEN);
+        flash_address += FRAME_MSG_LEN;
+    }
+
+    for (uint32_t i = 1; i < num_frames; i++) {
+        // Read in the next frame + write success/fail message to fw update
+        read_frame(frame_enc_ptr);
+
+        //Decrypt boilerplate :fire: :fire: :fire:
+        dec_result = decrypt(frame_enc_ptr, &frame_index, frame_dec_ptr->plaintext);
+
+        //While decryption result is not 0, resend the frame until max decrypts is hit. Otherwise write an OK message.
+        if (dec_result == 0) {
+            uart_write(UART0, OK_DECRYPT);
+        } else {
+            tries = 1;
+            while (tries <= MAX_DECRYPTS && (dec_result != 0)) {
+                uart_write(UART0, INTEGRITY_ERROR);
+                read_frame(frame_enc_ptr);
+                dec_result = decrypt(frame_enc_ptr, &frame_index, frame_dec_ptr->plaintext);
+                tries++;
             }
-            // If the frame is not a start frame, there is an error
-            if (frame_dec_start_ptr->type != TYPE_START) {
-                uart_write(UART0, TYPE_ERROR);
+            if (dec_result != 0) {
+                // Decrypt failed more than the max number of times we allow
+                uart_write(UART0, DECRYPT_FAIL);
                 return;
-            }
-            
-            //Writing message type back to fw update test for testing purposes (please remove later)
-            uart_write(UART0, OK);
-            frame_index++;
-
-
-            // If the frame is the last of the start frames, it's padded
-            if (i == num_frames - 1) {
-                // Print out message, but unpadded
-                uint32_t index = unpad(frame_dec_start_ptr->msg, FRAME_MSG_LEN);
-                // Ending the start message string at the place where the padding starts using a null byte
-                frame_dec_start_ptr->msg[index] = '\0';
             } else {
-                // Print out the message - Remove Later
+                // Decrypt successful
+                uart_write(UART0, OK_DECRYPT);
             }
         }
-    } 
-    else if (msg_size == FRAME_MSG_LEN) {
-        //writing message type back to fw update test for testing purposes (please remove later)
-         // Flash the frame of release message to flash
+        // If the frame is not a start frame, there is an error
+        if (frame_dec_start_ptr->type != TYPE_START) {
+            uart_write(UART0, TYPE_ERROR);
+            return;
+        }
+        
+        //Writing message type back to fw update test for testing purposes (please remove later)
+        uart_write(UART0, OK);
+        frame_index++;
 
-    } else if (msg_size < FRAME_MSG_LEN) {
-        // Print out message, but unpadded
-        uint32_t index = unpad(frame_dec_start_ptr->msg, FRAME_MSG_LEN);
-        // Ending the start message string at the place where the padding starts using a null byte
-        frame_dec_start_ptr->msg[index] = '\0';
+
+        // If the frame is the last of the start frames, it's padded
+        if ((i == num_frames - 1) && has_padding) {
+            // Print out message, but unpadded
+            uint32_t index = unpad(frame_dec_start_ptr->msg, FRAME_MSG_LEN);
+
+            // Writing the release message to after where the firmware will be
+            write_firmware(flash_address + fw_size, frame_dec_start_ptr->msg, index);
+            flash_address += index;
+        } else {
+            // Writing the release message to after where the firmware will be
+            write_firmware(flash_address + fw_size, frame_dec_start_ptr->msg, FRAME_MSG_LEN);
+            flash_address += FRAME_MSG_LEN;
+        }
     }
 
     // ----------------------------- END FIRMWARE START MESSAGE READING -- START OF FIRMWARE BODY FRAMES ---------------------------------- //
 
     // Iterate through body frames
-    uint32_t num_frames;
 
     // Calculate the expected number of frames that fw update should send
     if (fw_size % FRAME_BODY_LEN == 0) {
@@ -445,6 +454,10 @@ void load_firmware(void) {
             uart_write(UART0, TYPE_ERROR);
             return;
         }
+
+        // Writing the release message to after where the firmware will be
+        write_firmware(flash_address + fw_size, frame_dec_start_ptr->msg, FRAME_MSG_LEN);
+        flash_address += FRAME_MSG_LEN;
 
         uart_write(UART0, OK);
 
