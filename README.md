@@ -1,3 +1,7 @@
+![5xCD cover page](https://github.com/thecashmoney/chunkychunkchunkchunkchonkydinosaurs/blob/main/5xcdREADME.png?raw=true)
+
+
+--------------------------------------- ORIGINAL TEXT ---------------------------------------
 # Cryptographic Automotive Software Handler and Bootloader (CrASHBoot)
 
 Installation and development guide for the most secure (TM) automotive bootloader on the planet! We guarentee that cars running our software will be unhackable (provided hacking is not attempted). Of all the automotive bootloaders, this is certainly one of them. Read on and tremble at our embedded security skillz.
@@ -63,11 +67,14 @@ There are three python scripts in the `tools` directory which are used to:
 
 ### bl_build.py
 
-This script calls `make` in the `bootloader` directory.
+This script generates a random 16-byte value and writes it to secrets.h as a formatted byte string.
+It also writes the raw 16-byte value to secret-output.txt.
+It then calls `make` in the `bootloader` directory.
 
 ### fw_protect.py
 
 This script bundles the version and release message with the firmware binary.
+It then encrypts each message chunk (start, data, end).
 
 ### fw_update.py
 
