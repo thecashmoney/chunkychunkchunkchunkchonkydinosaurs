@@ -36,7 +36,7 @@ void boot_firmware(void);
 void uart_write_hex_bytes(uint8_t, uint8_t *, uint32_t);
 int decrypt(generic_frame *frame, uint32_t *frame_num, uint8_t *plaintext);
 uint32_t erase_pages(void *page_addr, uint32_t num_pages);
-int write_firmware(void *mem_addr, uint8_t *firmware, uint32_t data_len);
+int write_firmware(uint8_t *mem_addr, uint8_t *firmware, uint32_t data_len);
 
 // Firmware Constants
 #define METADATA_BASE 0xFC00 // base address of version and firmware size in Flash
@@ -544,7 +544,7 @@ uint32_t erase_pages(void *page_addr, uint32_t num_pages) {
  */
 
 
-int write_firmware(void* page_addr, uint8_t *firmware, uint32_t data_len) {
+int write_firmware(uint8_t* page_addr, uint8_t *firmware, uint32_t data_len) {
     uint32_t word = 0;
     int result;
     uint32_t i;
