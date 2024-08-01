@@ -60,6 +60,8 @@ def send_frame(ser, data, debug=False):
 
     frame = IV + tag + ciphertext
 
+    print(frame)
+    print(len(frame))
     ser.write(frame)  # Write the frame...  
 
     #resp = read_byte()
@@ -76,9 +78,9 @@ def read_byte():
 def main():
     num_frames = 0
 
-    f = open("protected_output.bin", "rb")
-    data = f.read()
-    f.close()
+    with open("/home/anushka/chunkychunkchunkchunkchonkydinosaurs/tools/protected_output.bin", "rb") as f:
+        data = f.read()
+        f.close()
     num_frames = calc_num_frames(data)
     frames_sent = 0
 
@@ -91,7 +93,6 @@ def main():
         send_frame(ser, current_frame)
         frames_sent += 1
     
-
         # if(response != RESP_OK):
         #     #screaming sobbing dying
         #     send_frame(ser, current_frame)
@@ -99,33 +100,10 @@ def main():
 
         # Reads 0 if successful decryption, or RESP_RESEND if not
         decrypt_response = read_byte()
-
-        while decrypt_response!= RESP_DEC_OK:
-            if decrypt_response == RESP_RESEND:
-                send_frame(ser, current_frame)
-                decrypt_response = read_byte()
-            elif decrypt_response == RESP_DEC_ERR:
-                print("Potential attack. Aborting.")
-                return
-            else:
-                print("Bootloader error encountered.")
-                return
-
             
-        
         # reading message type
         message_type = read_byte()
-        if message_type == VERSION_ERROR:
-            print("Go kill yourself")
-            return
-        elif message_type == TYPE_ERROR:
-            print("Problem recieving frame")
-            return
-        elif message_type == STOP:
-            print("Done.")
-            return
-        elif message_type != RESP_OK:
-            print("Response error")
+        if message_type != RESP_OK:
             return
         
     ser.close()
