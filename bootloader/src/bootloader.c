@@ -409,6 +409,8 @@ void load_firmware(void) {
     }
 
     // ----------------------------- END FIRMWARE START MESSAGE READING -- START OF FIRMWARE BODY FRAMES ---------------------------------- //
+    // Setting the flash_address pointer back to where the firmware goes
+    flash_address = (uint8_t *) FLASH_BASE;
 
     // Iterate through body frames
 
