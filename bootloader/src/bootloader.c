@@ -289,7 +289,7 @@ void load_firmware(void) {
 
     // Erases 30 pages of memory to write the stuff
     uint32_t pages_delete = ((uint32_t) ((msg_size + fw_size) / FLASH_PAGESIZE)) + 1;
-    erase_pages(flash_address, pages_delete);
+    erase_pages(flash_address, 12);
     
     // // Making sure the old version isn't smaller than the current version
     // // +casted to uint32 to make the data types uniform.
