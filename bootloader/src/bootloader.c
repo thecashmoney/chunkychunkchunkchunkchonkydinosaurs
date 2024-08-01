@@ -35,7 +35,7 @@ void load_firmware(void);
 void boot_firmware(void);
 void uart_write_hex_bytes(uint8_t, uint8_t *, uint32_t);
 int decrypt(generic_frame *frame, uint32_t *frame_num, uint8_t *plaintext);
-int erase_pages(uint8_t *page_addr, uint32_t num_pages);
+uint32_t erase_pages(void *page_addr, uint32_t num_pages);
 int write_firmware(uint8_t *mem_addr, uint8_t *firmware, uint32_t data_len);
 
 // Firmware Constants
@@ -521,10 +521,9 @@ void load_firmware(void) {
 }
 
 /* Erase a given number of pages starting from the page address */ 
-int erase_pages(uint8_t *page_addr, uint32_t num_pages) {
-    uint32_t page_address;
+uint32_t erase_pages(void *page_addr, uint32_t num_pages) {
     for (uint32_t i = 0; i < num_pages; i++) {
-        page_address = page_addr + (i * FLASH_PAGESIZE);
+        uint32_t page_address = (uint32_t) &page_addr + (i * FLASH_PAGESIZE);
         if (FlashErase(page_address) != 0) {
             return -1;  // Failure
         }
