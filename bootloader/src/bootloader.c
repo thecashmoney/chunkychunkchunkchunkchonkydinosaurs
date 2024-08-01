@@ -204,7 +204,7 @@ void read_frame(generic_frame *frame)
     receive_ciphertext(frame->ciphertext);
 
     // send back a null byte 
-    return OK;
+    // return OK;
 
     // // TODO: Remove the testing for loops later
     // for (int i=0; i<16; i++)
@@ -229,9 +229,6 @@ void read_frame(generic_frame *frame)
 void load_firmware(void) {
     // Address to flash metadata and firmware to
     uint8_t *flash_address = (uint8_t *) FW_BASE;
-
-    // Erases 30 pages of memory to write the stuff
-    erase_pages(flash_address, 30);
 
     // params needed: generic_frame *frame, uint32_t *frame_num, uint8_t *plaintext
     uint32_t tries = 0;
@@ -289,6 +286,10 @@ void load_firmware(void) {
     uint32_t version = frame_dec_start_ptr->version_num;
     uint32_t fw_size = frame_dec_start_ptr->total_size;
     uint32_t msg_size = frame_dec_start_ptr->msg_size;
+
+    // Erases 30 pages of memory to write the stuff
+    uint32_t pages_delete = ((uint32_t) ((msg_size + fw_size) / FLASH_PAGESIZE)) + 1;
+    erase_pages(flash_address, pages_delete);
     
     // // Making sure the old version isn't smaller than the current version
     // // +casted to uint32 to make the data types uniform.
@@ -523,7 +524,7 @@ void load_firmware(void) {
 /* Erase a given number of pages starting from the page address */ 
 uint32_t erase_pages(void *page_addr, uint32_t num_pages) {
     for (uint32_t i = 0; i < num_pages; i++) {
-        uint32_t page_address = (uint32_t) &page_addr + (i * FLASH_PAGESIZE);
+        uint32_t page_address = (uint32_t) page_addr + (i * FLASH_PAGESIZE);
         if (FlashErase(page_address) != 0) {
             return -1;  // Failure
         }
@@ -588,7 +589,7 @@ long program_flash(void* page_addr, unsigned char * data, unsigned int data_len)
 
     // // Erase next 30 FLASH pages
     // erase_page(page_addr, 30);  // i think this is passing in the right address 
-    // //FlashErase((uint32_t) page_addr);
+    // FlashErase((uint32_t) page_addr);
 
 
     // Clear potentially unused bytes in last word
