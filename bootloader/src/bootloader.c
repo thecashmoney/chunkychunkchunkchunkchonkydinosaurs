@@ -458,8 +458,8 @@ void load_firmware(void) {
         }
 
         // Writing the release message to after where the firmware will be
-        write_firmware(flash_address, frame_dec_body_ptr->plaintext, FRAME_MSG_LEN);
-        flash_address += FRAME_MSG_LEN;
+        write_firmware(flash_address, frame_dec_body_ptr->plaintext, FRAME_BODY_LEN);
+        flash_address += FRAME_BODY_LEN;
 
         uart_write(UART0, OK);
 
