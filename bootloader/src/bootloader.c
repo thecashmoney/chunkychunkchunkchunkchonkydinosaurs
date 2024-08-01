@@ -228,7 +228,7 @@ void read_frame(generic_frame *frame)
  */
 void load_firmware(void) {
     // Address to flash metadata and firmware to
-    void *flash_address = FW_BASE;
+    uint8_t *flash_address = (uint8_t *) FW_BASE;
 
     // Erases 30 pages of memory to write the stuff
     erase_pages(flash_address, 30);
