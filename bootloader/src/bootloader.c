@@ -228,39 +228,49 @@ void read_frame(generic_frame *frame)
 
 
 void decrypt_start_frame(uint32_t index, generic_frame f, generic_decrypted_frame dec_frame, pltxt_start_frame * dec_f) {
-    //decrypt confirmed works + sending works
-    int dec_result = decrypt(&f, &index, (&dec_frame)-> plaintext);
-    if(dec_result == 0) {
-        uart_write(UART0, OK);
-    } else {
-        uart_write(UART0, ERROR);
-        //sys ctl reset
-    }
     
-    //type confirmed works
-    // code to check type
-    if(dec_f -> type != TYPE_START) {
-       // uart_write(UART0, ERROR);
-        uart_write(UART0, ERROR);
-    } else {
-        uart_write(UART0, OK);
-    }
-    
-    //code to check version
-    uint32_t version = dec_f -> version_num;
-    
-    //add in the function to flash version number to store it in fw_version_address
-    if(version < (uint32_t)(*fw_version_address) && version != 0 && (*fw_version_address) != 0xFFFF) {
-        //send error code, exit and sys ctl reset
-        uart_write(UART0, ERROR);
-        return;
-    } else {
-        uart_write(UART0, OK);
-    }
 }
  /*
  * Load the firmware into flash.
  */
+
+uint8_t check_type(generic_decrypted_frame f, char expected_frame_type) {
+    //START: S, END = E, DATA FRAMES = B
+    if(expected_frame_type == 'S') {
+        pltxt_start_frame * dec_start_frame_ptr = &f;
+        if(dec_start_frame_ptr -> type != TYPE_START) {
+       // uart_write(UART0, ERROR);
+            return ERROR;
+        } else {
+            return OK;
+        }
+    } else if(expected_frame_type == 'E') {
+        pltxt_end_frame * dec_end_frame_ptr = &f;
+        if(dec_end_frame_ptr -> type != TYPE_END) {
+            return ERROR;
+        } else {
+            return OK;
+        }
+
+    } else if(expected_frame_type == 'B') {
+        pltxt_body_frame * dec_body_frame_ptr = &f;
+        if(dec_body_frame_ptr -> type != TYPE_BODY) {
+            return ERROR;
+        } else {
+            return OK;
+        }
+
+    } else {
+        return ERROR;
+    }
+ }
+
+//  void check_decrypt() {
+
+//  }
+
+ 
+ 
 void load_firmware(void) {
     // Address to flash metadata and firmware to
     uint8_t *flash_address = (uint8_t *) FW_BASE;
@@ -276,6 +286,9 @@ void load_firmware(void) {
     generic_frame f;
     generic_decrypted_frame dec_frame;
     pltxt_start_frame * dec_start_frame_ptr = (pltxt_start_frame * ) &dec_frame;
+
+
+    // ------------------------------------------- READ START FRAME ------------------------------------------- //
 
 
     // Sending the result (either OK msg or NOT OK Message) of reading the first START frame
@@ -294,16 +307,18 @@ void load_firmware(void) {
         uart_write(UART0, ERROR);
         //sys ctl reset
     }
-    
 
+    uint8_t resp = check_type(dec_frame, 'S');
+    uart_write(UART0, resp);
+    
     //type confirmed works
     // code to check type
-    if(dec_start_frame_ptr -> type != TYPE_START) {
-       // uart_write(UART0, ERROR);
-        uart_write(UART0, ERROR);
-    } else {
-        uart_write(UART0, OK);
-    }
+    // if(dec_start_frame_ptr -> type != TYPE_START) {
+    //    // uart_write(UART0, ERROR);
+    //     uart_write(UART0, ERROR);
+    // } else {
+    //     uart_write(UART0, OK);
+    // }
     
     //code to check version
     uint32_t version = dec_start_frame_ptr -> version_num;
@@ -316,15 +331,18 @@ void load_firmware(void) {
     } else {
         uart_write(UART0, OK);
     }
-  
+
+    // --------------- code above works --------------- //
+
     // calculates the number of startframes that will be read in
-    /*uint32_t num_start_frames = 1;
+    uint32_t num_start_frames = 1;
     uint32_t msg_size = dec_start_frame_ptr -> msg_size;
     if(msg_size % FRAME_MSG_LEN == 0) {
         num_start_frames = msg_size / FRAME_MSG_LEN;
     } else {
         num_start_frames = (msg_size / FRAME_MSG_LEN) + 1;
-    }*/
+    }
+    int YAYAYAYAYYY;
 
     // //i needs to start at 1 because we already read 1 frame
     // uint8_t hasPadding = msg_size % FRAME_MSG_LEN == 0;
@@ -340,8 +358,11 @@ void load_firmware(void) {
     //     }
     // }    
 
-    /*
-    NEXT CODE TO ADD:
+    
+
+     // ------------------------------------------- END OF READ START FRAME ------------------------------------------- //
+
+    /*NEXT CODE TO ADD:
     - Decrypt first frame, use decrypted results:
         check the type 
         check the version 
