@@ -265,9 +265,13 @@ uint8_t check_type(generic_decrypted_frame f, char expected_frame_type) {
     }
  }
 
-//  void check_decrypt() {
-
-//  }
+uint8_t check_decrypt(int dec_result) {
+    if(dec_result == 0) {
+        return OK;
+    } else {
+        return ERROR;
+    }
+}
 
  
  
@@ -301,15 +305,18 @@ void load_firmware(void) {
     
     //decrypt confirmed works + sending works
     int dec_result = decrypt(&f, &index, (&dec_frame)-> plaintext);
-    if(dec_result == 0) {
-        uart_write(UART0, OK);
-    } else {
-        uart_write(UART0, ERROR);
-        //sys ctl reset
-    }
+    uint8_t dec_resp = check_decrypt(dec_result);
+    uart_write(UART0, dec_resp);
+    // if(dec_result == 0) {
+    //     uart_write(UART0, OK);
+    // } else {
+    //     uart_write(UART0, ERROR);
+    //     //sys ctl reset
+    // }
 
-    uint8_t resp = check_type(dec_frame, 'S');
-    uart_write(UART0, resp);
+    // YAYAY WORKS!!!!!!!!!! <33333
+    uint8_t type_resp = check_type(dec_frame, 'S');
+    uart_write(UART0, type_resp);
     
     //type confirmed works
     // code to check type
