@@ -52,7 +52,7 @@ def update_line(headerFile, varUpdate, value: bytes):
     with open(headerFile, 'w') as file:
         file.writelines(lines)
     
-    print(f"Updated {varUpdate} to \"{value}\"")
+    print(f"Updated {varUpdate}...")
     # Write the value to secret_build_output.txt
     with open('../secret_build_output.txt', 'w') as file:
         for i in value:
@@ -76,8 +76,6 @@ def make_bootloader() -> bool:
 
     # Generate AES-GCM (128 bit) key
     aesKey = get_random_bytes(16)
-
-    print("Aes Key: ", aesKey)
 
     #with open('../secret_build_output.txt', 'r+') as file:
     #    file.truncate(0)  # This will truncate the file to zero length

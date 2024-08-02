@@ -88,7 +88,7 @@ LDFLAGS=--gc-sections \
 # Debug settings
 CFLAGS+=-ggdb -D DEBUG -O0
 
-CFLAGS+=-Os
+#CFLAGS+=-Os
 
 # Object files from C files
 bin/%.o: %.c

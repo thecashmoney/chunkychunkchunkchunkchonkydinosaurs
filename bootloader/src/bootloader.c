@@ -227,7 +227,37 @@ void read_frame(generic_frame *frame)
 }
 
 
-
+void decrypt_start_frame(uint32_t index, generic_frame f, generic_decrypted_frame dec_frame, pltxt_start_frame * dec_f) {
+    //decrypt confirmed works + sending works
+    int dec_result = decrypt(&f, &index, (&dec_frame)-> plaintext);
+    if(dec_result == 0) {
+        uart_write(UART0, OK);
+    } else {
+        uart_write(UART0, ERROR);
+        //sys ctl reset
+    }
+    
+    //type confirmed works
+    // code to check type
+    if(dec_f -> type != TYPE_START) {
+       // uart_write(UART0, ERROR);
+        uart_write(UART0, ERROR);
+    } else {
+        uart_write(UART0, OK);
+    }
+    
+    //code to check version
+    uint32_t version = dec_f -> version_num;
+    
+    //add in the function to flash version number to store it in fw_version_address
+    if(version < (uint32_t)(*fw_version_address) && version != 0 && (*fw_version_address) != 0xFFFF) {
+        //send error code, exit and sys ctl reset
+        uart_write(UART0, ERROR);
+        return;
+    } else {
+        uart_write(UART0, OK);
+    }
+}
  /*
  * Load the firmware into flash.
  */
@@ -250,42 +280,65 @@ void load_firmware(void) {
 
     // Sending the result (either OK msg or NOT OK Message) of reading the first START frame
     read_frame(&f);
+    //potential issue: read_frame may not be reading in the ciphertext correctly (has extra bytes after 480 bytes)
+    decrypt_start_frame(index, f, dec_frame, dec_start_frame_ptr);
+    int jdfkljdskfjlsfls; //break here, check python to ensure that message codes are being sent
+
+    //todo: debug decrypt_start_frame function
     
-    int dec_result = decrypt(&f, &index, (&dec_frame)-> plaintext);
-    //decrypt confirmed works
+    // //decrypt confirmed works + sending works
+    // int dec_result = decrypt(&f, &index, (&dec_frame)-> plaintext);
+    // if(dec_result == 0) {
+    //     uart_write(UART0, OK);
+    // } else {
+    //     uart_write(UART0, ERROR);
+    //     //sys ctl reset
+    // }
+    
 
-    // exits out if decrypt does not work
-    if (dec_result != 0)
-    {
-        return;
+    // //type confirmed works
+    // // code to check type
+    // if(dec_start_frame_ptr -> type != TYPE_START) {
+    //    // uart_write(UART0, ERROR);
+    //     uart_write(UART0, ERROR);
+    // } else {
+    //     uart_write(UART0, OK);
+    // }
+    
+    // //code to check version
+    // uint32_t version = dec_start_frame_ptr -> version_num;
+    
+    // //add in the function to flash version number to store it in fw_version_address
+    // if(version < (uint32_t)(*fw_version_address) && version != 0 && (*fw_version_address) != 0xFFFF) {
+    //     //send error code, exit and sys ctl reset
+    //     uart_write(UART0, ERROR);
+    //     return;
+    // } else {
+    //     uart_write(UART0, OK);
+    // }
+  
+    // calculates the number of startframes that will be read in
+    uint32_t num_start_frames = 1;
+    uint32_t msg_size = dec_start_frame_ptr -> msg_size;
+    if(msg_size % FRAME_MSG_LEN == 0) {
+        num_start_frames = msg_size / FRAME_MSG_LEN;
+    } else {
+        num_start_frames = (msg_size / FRAME_MSG_LEN) + 1;
     }
 
-    int bruh = 0;
-    if(dec_start_frame_ptr -> type != TYPE_START) {
-        bruh = 9999;
-    }
-    bruh++;
-    int YAYAYAYAYAYYA = 0;
+    // //i needs to start at 1 because we already read 1 frame
+    // uint8_t hasPadding = msg_size % FRAME_MSG_LEN == 0;
+    // //not sure how the uint8t will get assigned the value, need to check the has padding variable
 
-    int asdfghjk = 0;
+    // int fjlksafjlksjfklds; //1st break here
+    // for(int i = 1; i < num_start_frames; i++) {
 
-    /*
-    //code to check version
-    uint32_t version = dec_start_frame_ptr -> version_num
-    int bru = 0;
-    if(version < (uint32_t)(&fw_version_address) && version != 0) {
-        //send error code, exit and sys ctl reset
         
-        bru = 9999
-    }
-    bru++
-    */
 
-    
-
-    
-
-    
+    //     if((i == num_start_frames - 1) && hasPadding) {
+    //         //unpad the frame
+    //     }
+    // }    
 
     /*
     NEXT CODE TO ADD:

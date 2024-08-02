@@ -55,23 +55,12 @@ def send_frame(ser, data, debug=False):
     print("TAG: ", tag)
     print("CIPHERTEXT: ", ciphertext)
 
-    # print(len(IV))
-    # print(len(tag))
-    # frame = IV + tag + ciphertext
-    # print("IV: ", IV)
-    # print("tag: ", tag)
-    # print("ctext: ", ciphertext)
-
     frame = IV + tag + ciphertext
 
-    print("FRAME: ", frame)
-    print(len(frame))
+    print("FRAME: ", frame)  # TODO: Remove this debug
+    print(len(frame))  # TODO: Remove th debug
     ser.write(frame)  # Write the frame...  
 
-    #resp = read_byte()
-    #print("Bootloader responded with: ", resp)
-
-    #return resp
 
 def read_byte():
     byte = ser.read(1)
@@ -104,12 +93,21 @@ def main():
 
         # Reads 0 if successful decryption, or RESP_RESEND if not
         decrypt_response = read_byte()
+        print("Decrypt response: ", decrypt_response)
+        if decrypt_response != RESP_OK:
+            return
             
         # reading message type
-        message_type = read_byte()
-        if message_type != RESP_OK:
+        type_error = read_byte()
+        print("Type byte", type_error)
+        if type_error != RESP_OK:
             return
-        
+
+        version_error = read_byte()  
+        print("Version byte", version_error)   
+        if version_error != RESP_OK:
+            return
+                    
     ser.close()
 
 if __name__ == "__main__":
