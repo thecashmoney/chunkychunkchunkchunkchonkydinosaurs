@@ -416,6 +416,28 @@ void load_firmware(void) {
     
     // ------------------------------------------- END OF READ BODY FRAMES ------------------------------------------- //
 
+
+    // ------------------------------------------- READ END FRAME ------------------------------------------- //
+
+
+    read_frame(&f);
+    dec_result = decrypt(&f, &index, (&dec_frame)-> plaintext);
+    dec_resp = check_decrypt(dec_result);
+    uart_write(UART0, dec_resp);
+
+
+
+    // uint8_t type_resp = check_type(dec_frame, 'E');
+    // uart_write(UART0, type_resp);
+   
+    
+    
+    // TODO: no need to unpad end frame?
+
+    // ------------------------------------------- END OF READ END FRAME ------------------------------------------- //
+
+
+
     /*NEXT CODE TO ADD:
     - Decrypt first frame, use decrypted results:
         check the type 

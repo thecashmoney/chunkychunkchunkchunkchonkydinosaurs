@@ -80,7 +80,7 @@ def main():
     
 
     while frames_sent != num_frames:
-        print("Frame.")
+        print("Frame: ", (frames_sent+1))
         current_frame = data[frames_sent * 512: (frames_sent + 1) * 512]
         send_frame(ser, current_frame)
     
