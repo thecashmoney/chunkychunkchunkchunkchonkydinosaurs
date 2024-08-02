@@ -369,9 +369,10 @@ void load_firmware(void) {
         index = i + 1;
 
 
-        // if((i == num_start_frames - 1) && hasPadding) {
-        //     //unpad the frame
-        // }
+        if((i == num_start_frames - 1) && hasPadding) {
+            uint32_t unpad_index = unpad(dec_start_frame_ptr->msg, FRAME_MSG_LEN);
+            int fdjkslfjdklsfjlk = 0;
+        }
     }    
 
     // ------------------------------------------- END OF READ START FRAMES ------------------------------------------- //
@@ -404,8 +405,6 @@ void load_firmware(void) {
         uart_write(UART0, dec_resp);
         index++;
 
-
-// TEST THIS
         uint8_t type_resp = check_type(dec_frame, 'B');
         uart_write(UART0, type_resp);
     }
