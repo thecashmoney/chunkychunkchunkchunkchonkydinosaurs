@@ -281,50 +281,50 @@ void load_firmware(void) {
     // Sending the result (either OK msg or NOT OK Message) of reading the first START frame
     read_frame(&f);
     //potential issue: read_frame may not be reading in the ciphertext correctly (has extra bytes after 480 bytes)
-    decrypt_start_frame(index, f, dec_frame, dec_start_frame_ptr);
-    int jdfkljdskfjlsfls; //break here, check python to ensure that message codes are being sent
+    //decrypt_start_frame(index, f, dec_frame, dec_start_frame_ptr);
+    //int jdfkljdskfjlsfls; //break here, check python to ensure that message codes are being sent
 
     //todo: debug decrypt_start_frame function
     
-    // //decrypt confirmed works + sending works
-    // int dec_result = decrypt(&f, &index, (&dec_frame)-> plaintext);
-    // if(dec_result == 0) {
-    //     uart_write(UART0, OK);
-    // } else {
-    //     uart_write(UART0, ERROR);
-    //     //sys ctl reset
-    // }
+    //decrypt confirmed works + sending works
+    int dec_result = decrypt(&f, &index, (&dec_frame)-> plaintext);
+    if(dec_result == 0) {
+        uart_write(UART0, OK);
+    } else {
+        uart_write(UART0, ERROR);
+        //sys ctl reset
+    }
     
 
-    // //type confirmed works
-    // // code to check type
-    // if(dec_start_frame_ptr -> type != TYPE_START) {
-    //    // uart_write(UART0, ERROR);
-    //     uart_write(UART0, ERROR);
-    // } else {
-    //     uart_write(UART0, OK);
-    // }
+    //type confirmed works
+    // code to check type
+    if(dec_start_frame_ptr -> type != TYPE_START) {
+       // uart_write(UART0, ERROR);
+        uart_write(UART0, ERROR);
+    } else {
+        uart_write(UART0, OK);
+    }
     
-    // //code to check version
-    // uint32_t version = dec_start_frame_ptr -> version_num;
+    //code to check version
+    uint32_t version = dec_start_frame_ptr -> version_num;
     
-    // //add in the function to flash version number to store it in fw_version_address
-    // if(version < (uint32_t)(*fw_version_address) && version != 0 && (*fw_version_address) != 0xFFFF) {
-    //     //send error code, exit and sys ctl reset
-    //     uart_write(UART0, ERROR);
-    //     return;
-    // } else {
-    //     uart_write(UART0, OK);
-    // }
+    //add in the function to flash version number to store it in fw_version_address
+    if(version < (uint32_t)(*fw_version_address) && version != 0 && (*fw_version_address) != 0xFFFF) {
+        //send error code, exit and sys ctl reset
+        uart_write(UART0, ERROR);
+        return;
+    } else {
+        uart_write(UART0, OK);
+    }
   
     // calculates the number of startframes that will be read in
-    uint32_t num_start_frames = 1;
+    /*uint32_t num_start_frames = 1;
     uint32_t msg_size = dec_start_frame_ptr -> msg_size;
     if(msg_size % FRAME_MSG_LEN == 0) {
         num_start_frames = msg_size / FRAME_MSG_LEN;
     } else {
         num_start_frames = (msg_size / FRAME_MSG_LEN) + 1;
-    }
+    }*/
 
     // //i needs to start at 1 because we already read 1 frame
     // uint8_t hasPadding = msg_size % FRAME_MSG_LEN == 0;
