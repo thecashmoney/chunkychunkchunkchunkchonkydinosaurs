@@ -289,7 +289,7 @@ void load_firmware(void) {
 
     // Erases 30 pages of memory to write the stuff
     uint32_t pages_delete = ((uint32_t) ((msg_size + fw_size) / FLASH_PAGESIZE)) + 1;
-    // erase_pages(flash_address, pages_delete);
+    erase_pages(flash_address, pages_delete);
 
     flash_address = FW_BASE;
     
