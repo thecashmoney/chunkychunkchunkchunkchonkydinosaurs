@@ -83,7 +83,7 @@ def make_bootloader() -> bool:
     #    file.truncate(0)  # This will truncate the file to zero length
 
     # update secrets.h with the newly generated AES-GCM (128 bit) key
-    update_line("${HOME}/chunkychunkchunkchunkchonkydinosaurs/bootloader/inc/secrets.h", "aesKey", aesKey)
+    update_line("../bootloader/inc/secrets.h", "aesKey", aesKey)
 
     # update secrets.h with the newly generated AAD 
     #update_line("${HOME}/chunkychunkchunkchunkchonkydinosaurs/bootloader/inc/secrets.h", "aad", aad.hex())
