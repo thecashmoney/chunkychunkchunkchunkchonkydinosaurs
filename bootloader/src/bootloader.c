@@ -281,7 +281,8 @@ void load_firmware(void) {
     uint8_t *flash_address = (uint8_t *) FW_BASE;
 
     // Erases 30 pages of memory to write the stuff
-    //erase_pages(flash_address, 30);
+    
+    erase_pages(flash_address, 30);
 
     // params needed: generic_frame *frame, uint32_t *frame_num, uint8_t *plaintext
     uint32_t result = 0;
@@ -294,8 +295,7 @@ void load_firmware(void) {
 
 
     // ------------------------------------------- READ START FRAMES ------------------------------------------- //
-
-
+    
     // Sending the result (either OK msg or NOT OK Message) of reading the first START frame
     read_frame(&f);
     //potential issue: read_frame may not be reading in the ciphertext correctly (has extra bytes after 480 bytes)
@@ -308,12 +308,6 @@ void load_firmware(void) {
     int dec_result = decrypt(&f, &index, (&dec_frame)-> plaintext);
     uint8_t dec_resp = check_decrypt(dec_result);
     uart_write(UART0, dec_resp);
-    // if(dec_result == 0) {
-    //     uart_write(UART0, OK);
-    // } else {
-    //     uart_write(UART0, ERROR);
-    //     //sys ctl reset
-    // }
 
     // YAYAY WORKS!!!!!!!!!! <33333
     uint8_t type_resp = check_type(dec_frame, 'S');
@@ -349,7 +343,9 @@ void load_firmware(void) {
         num_start_frames = (msg_size / FRAME_MSG_LEN) + 1;
     }
 
-    //need to add flash at some point here
+    //add flash here
+    write_firmware(flash_address, &(dec_start_frame_ptr -> msg), FRAME_MSG_LEN);
+    int fjkldsjklfdsjklfdsjlk = 0;
     
     //variable "i" needs to start at 1 because we already read 1 frame
     uint8_t hasPadding = 1;
@@ -375,6 +371,7 @@ void load_firmware(void) {
     }    
 
     // ------------------------------------------- END OF READ START FRAMES ------------------------------------------- //
+
 
 
     // ------------------------------------------- READ DATA FRAMES ------------------------------------------- //
@@ -413,12 +410,11 @@ void load_firmware(void) {
         }
     }
     
-    
     // ------------------------------------------- END OF READ BODY FRAMES ------------------------------------------- //
 
 
-    // ------------------------------------------- READ END FRAME ------------------------------------------- //
 
+    // ------------------------------------------- READ END FRAME ------------------------------------------- //
 
     read_frame(&f);
     dec_result = decrypt(&f, &index, (&dec_frame)-> plaintext);
@@ -426,11 +422,6 @@ void load_firmware(void) {
     uart_write(UART0, dec_resp);
     type_resp = check_type(dec_frame, 'E');
     uart_write(UART0, type_resp);
-    
-   
-    
-    
-    // TODO: no need to unpad end frame?
 
     // ------------------------------------------- END OF READ END FRAME ------------------------------------------- //
 
