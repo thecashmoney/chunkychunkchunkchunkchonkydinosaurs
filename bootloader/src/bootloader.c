@@ -35,7 +35,7 @@ void load_firmware(void);
 void boot_firmware(void);
 void uart_write_hex_bytes(uint8_t, uint8_t *, uint32_t);
 int decrypt(generic_frame *frame, uint32_t *frame_num, uint8_t *plaintext);
-uint32_t erase_pages(void *page_addr, uint32_t num_pages);
+int erase_pages(uint8_t *page_addr, uint32_t num_pages);
 int write_firmware(uint8_t *mem_addr, uint8_t *firmware, uint32_t data_len);
 
 // Firmware Constants
@@ -312,7 +312,7 @@ void load_firmware(void) {
             SysCtlReset();
             return;
         }
-    } else if (version < old_version & version != 0) 
+    } else if (version < old_version && version != 0) 
     {
         // Attempted rollback
         // version 0 allowed to be loaded
@@ -524,15 +524,15 @@ void load_firmware(void) {
 }
 
 /* Erase a given number of pages starting from the page address */ 
-uint32_t erase_pages(void *page_addr, uint32_t num_pages) {
+int erase_pages(uint8_t *page_addr, uint32_t num_pages) {
     // Assuming 16mHz is the clock speed idk what it is or how that works but it works
     // Number after the * is the amount to wait in ms
     volatile uint32_t cycles = (16000000 / 1000) * 500;
     volatile uint32_t cycle = 0;
     for (uint32_t page = 0; page < num_pages; page++) {
-        if (FlashErase(page_addr) != 0) {
+        if (FlashErase((uint32_t) page_addr) != 0) {
             uart_write(UART0, TYPE_ERROR);  // Failure
-            return;
+            return - 1;
         }
         page_addr += FLASH_PAGESIZE;
         while (cycle < cycles) {
