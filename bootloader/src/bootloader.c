@@ -40,7 +40,7 @@ int write_firmware(uint8_t *mem_addr, uint8_t *firmware, uint32_t data_len);
 
 // Firmware Constants
 #define METADATA_BASE 0xFC00 // base address of version and firmware size in Flash
-#define FW_BASE 0x15800      // base address of firmware in Flash
+#define FW_BASE 0x10000      // base address of firmware in Flash
 
 // FLASH Constants
 #define FLASH_PAGESIZE 1024
