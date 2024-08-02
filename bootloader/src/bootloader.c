@@ -527,7 +527,7 @@ void load_firmware(void) {
 uint32_t erase_pages(void *page_addr, uint32_t num_pages) {
     // Assuming 16mHz is the clock speed idk what it is or how that works but it works
     // Number after the * is the amount to wait in ms
-    volatile uint32_t cycles = (16000000 / 1000) * 1000;
+    volatile uint32_t cycles = (16000000 / 1000) * 500;
     volatile uint32_t cycle = 0;
     for (uint32_t page = 0; page < num_pages; page++) {
         if (FlashErase(page_addr) != 0) {
