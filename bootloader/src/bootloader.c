@@ -350,8 +350,18 @@ void load_firmware(void) {
         num_start_frames = (msg_size / FRAME_MSG_LEN) + 1;
     }
     
+    //i needs to start at 1 because we already read 1 frame
+    uint8_t hasPadding = 1;
+    if (msg_size % FRAME_MSG_LEN == 0) {
+        hasPadding = 0;
+    }
 
-    // //i needs to start at 1 because we already read 1 frame
+    int yayayayya = 0;
+    // for(int i = 1; i < num_start_frames; i++) {
+    //     read()
+    // }
+    
+
     // uint8_t hasPadding = msg_size % FRAME_MSG_LEN == 0;
     // //not sure how the uint8t will get assigned the value, need to check the has padding variable
 
