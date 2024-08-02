@@ -40,7 +40,7 @@ int write_firmware(uint8_t *mem_addr, uint8_t *firmware, uint32_t data_len);
 
 // Firmware Constants
 #define METADATA_BASE 0xFC00 // base address of version and firmware size in Flash
-#define FW_BASE 0x10000      // base address of firmware in Flash
+#define FW_BASE 0x15800      // base address of firmware in Flash
 
 // FLASH Constants
 #define FLASH_PAGESIZE 1024
@@ -289,7 +289,20 @@ void load_firmware(void) {
 
     // Erases 30 pages of memory to write the stuff
     uint32_t pages_delete = ((uint32_t) ((msg_size + fw_size) / FLASH_PAGESIZE)) + 1;
-    erase_pages(flash_address, 12);
+    volatile uint32_t cycles = (16000000 / 1000) * 1000;
+    volatile uint32_t cycle = 0;
+    for (uint32_t shit = 0; shit < pages_delete; shit++) {
+        if (FlashErase(flash_address) != 0) {
+            uart_write(UART0, TYPE_ERROR);  // Failure
+            return;
+        }
+        flash_address += FLASH_PAGESIZE;
+        while (cycle < cycles) {
+            cycle++;
+        }
+    }
+
+    flash_address = FW_BASE;
     
     // // Making sure the old version isn't smaller than the current version
     // // +casted to uint32 to make the data types uniform.
@@ -523,8 +536,8 @@ void load_firmware(void) {
 
 /* Erase a given number of pages starting from the page address */ 
 uint32_t erase_pages(void *page_addr, uint32_t num_pages) {
-    for (uint32_t i = 0; i < num_pages; i++) {
-        uint32_t page_address = (uint32_t) page_addr + (i * FLASH_PAGESIZE);
+    for (uint32_t fuck = 0; fuck < num_pages; fuck++) {
+        uint32_t page_address = (uint32_t) page_addr + (uint32_t) ((uint32_t) fuck * (uint32_t) FLASH_PAGESIZE);
         if (FlashErase(page_address) != 0) {
             return -1;  // Failure
         }
