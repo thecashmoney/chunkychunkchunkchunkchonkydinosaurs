@@ -345,7 +345,7 @@ void load_firmware(void) {
 
     //add flash here
     write_firmware(flash_address, &(dec_start_frame_ptr -> msg), FRAME_MSG_LEN);
-    int fjkldsjklfdsjklfdsjlk = 0;
+    flash_address += FRAME_MSG_LEN;
     
     //variable "i" needs to start at 1 because we already read 1 frame
     uint8_t hasPadding = 1;
