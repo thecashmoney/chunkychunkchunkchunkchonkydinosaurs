@@ -371,7 +371,6 @@ void load_firmware(void) {
 
         if((i == num_start_frames - 1) && hasPadding) {
             uint32_t unpad_index = unpad(dec_start_frame_ptr->msg, FRAME_MSG_LEN);
-            int fdjkslfjdklsfjlk = 0;
         }
     }    
 
@@ -395,7 +394,7 @@ void load_firmware(void) {
     }
     
     // declaring a struct to store the decrypted body frame
-    pltxt_body_frame * dec_body;
+    pltxt_body_frame * dec_body_ptr;
 
     for(int i = 0; i < num_body_frames; i++) {
         read_frame(&f);
@@ -407,6 +406,11 @@ void load_firmware(void) {
 
         uint8_t type_resp = check_type(dec_frame, 'B');
         uart_write(UART0, type_resp);
+
+        if((i == num_body_frames - 1) && bodyHasPadding) {
+            dec_body_ptr = &dec_frame;
+            uint32_t unpad_index = unpad(dec_body_ptr -> plaintext, FRAME_BODY_LEN);
+        }
     }
     
     
