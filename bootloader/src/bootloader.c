@@ -405,10 +405,9 @@ void load_firmware(void) {
         index++;
 
 
-        // uint8_t type_resp = check_type(dec_frame, 'B');
-        // uart_write(UART0, type_resp);
-        // int fjdksafjkldsljfkds = 0;
-
+// TEST THIS
+        uint8_t type_resp = check_type(dec_frame, 'B');
+        uart_write(UART0, type_resp);
     }
     
     
