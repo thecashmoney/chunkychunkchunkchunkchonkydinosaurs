@@ -61,12 +61,14 @@ int write_firmware(uint8_t *mem_addr, uint8_t *firmware, uint32_t data_len);
 
 // Status constants to send to fw_update
 #define OK ((unsigned char)0x04)
-#define OK_DECRYPT ((unsigned char)0x05)
-#define DECRYPT_FAIL ((unsigned char)0x07)
-#define INTEGRITY_ERROR ((unsigned char)0x06)
-#define VERSION_ERROR ((unsigned char)0x08)
-#define TYPE_ERROR ((unsigned char)0x09)
-#define STOP ((unsigned char)0x10)
+#define ERROR ((unsigned char)0x05)
+
+// #define OK_DECRYPT ((unsigned char)0x05)
+// #define DECRYPT_FAIL ((unsigned char)0x07)
+// #define INTEGRITY_ERROR ((unsigned char)0x06)
+// #define VERSION_ERROR ((unsigned char)0x08)
+// #define TYPE_ERROR ((unsigned char)0x09)
+// #define STOP ((unsigned char)0x10)
 
 // Two characters to start off interaction between bl and update
 #define UPDATE ((unsigned char)'U')
@@ -156,6 +158,9 @@ void receive_IV_tag(uint8_t *IV, uint8_t *tag)
         IV[i] = (uint8_t) rcv;
     }
 
+    read = 0;
+    rcv = 0;
+
     // Reads the tag
     for (int i=0; i<16; i++)
     {
@@ -231,18 +236,88 @@ void load_firmware(void) {
     uint8_t *flash_address = (uint8_t *) FW_BASE;
 
     // Erases 30 pages of memory to write the stuff
-    erase_pages(flash_address, 30);
+    //erase_pages(flash_address, 30);
 
     // params needed: generic_frame *frame, uint32_t *frame_num, uint8_t *plaintext
     uint32_t result = 0;
     uint32_t index = 0;
+    
 
     generic_frame f;
+    generic_decrypted_frame dec_frame;
+    pltxt_start_frame * dec_start_frame_ptr = (pltxt_start_frame * ) &dec_frame;
+
 
     // Sending the result (either OK msg or NOT OK Message) of reading the first START frame
     read_frame(&f);
     
+    int dec_result = decrypt(&f, &index, (&dec_frame)-> plaintext);
+    //decrypt confirmed works
 
+    // exits out if decrypt does not work
+    if (dec_result != 0)
+    {
+        return;
+    }
+
+    int bruh = 0;
+    if(dec_start_frame_ptr -> type != TYPE_START) {
+        bruh = 9999;
+    }
+    bruh++;
+    int YAYAYAYAYAYYA = 0;
+
+    int asdfghjk = 0;
+
+    /*
+    //code to check version
+    uint32_t version = dec_start_frame_ptr -> version_num
+    int bru = 0;
+    if(version < (uint32_t)(&fw_version_address) && version != 0) {
+        //send error code, exit and sys ctl reset
+        
+        bru = 9999
+    }
+    bru++
+    */
+
+    
+
+    
+
+    
+
+    /*
+    NEXT CODE TO ADD:
+    - Decrypt first frame, use decrypted results:
+        check the type 
+        check the version 
+            send error code back if the type or version is incorrect, python side should return
+            
+        use release message length to find how many start frames there are
+        use fw_size to find how many body frames there are
+
+    Generalized function: readStartFrames->
+    - Use a for loop to read through the next few start frames (if any)
+        terminate if decryption fails
+        check the type of each message, terminate if wrong
+        use a boolean (or uint8_t or smth) to check for padding. if hasPadding, then unpad the last frame
+    
+    Generalized function: readBodyFrames->
+    - Use a for loop to read through the body frames
+        terminate if decryption fails
+        check the type of each message, terminate if wrong
+        use a boolean (or uint8_t or smth) to check for padding. If hasPadding, then unpad the last frame
+    
+    - Read the last end frame
+        make sure the message codes are correct
+
+    ONCE ALL READING AND STORING WORKS:
+    - revise erase_pages function, ensure that it works
+    - revise write_firmware function, ensure that it works
+    - implement erase_pages at the start of load_firmware
+    - implement write_firmware function
+    */
 }
 
 /* Erase a given number of pages starting from the page address */ 

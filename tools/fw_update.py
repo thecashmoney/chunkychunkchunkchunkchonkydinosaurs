@@ -13,13 +13,13 @@ from util import *
 
 ser = serial.Serial("/dev/ttyACM0", 115200)
 RESP_OK = b"\x04"
-RESP_DEC_OK = b"\x05"
-RESP_RESEND = b"\x06"
-RESP_DEC_ERR = b"\x07"
-VERSION_ERROR = b'\x08'
-TYPE_ERROR  = b'\x09'
+ERROR = b"\x05"
+# RESP_RESEND = b"\x06"
+# RESP_DEC_ERR = b"\x07"
+# VERSION_ERROR = b'\x08'
+# TYPE_ERROR  = b'\x09'
+# STOP = b'\x10'
 FRAME_SIZE = 512
-STOP = b'\x10'
 
 
 #constants from bootloader.h
@@ -51,6 +51,10 @@ def send_frame(ser, data, debug=False):
     tag = data[16:32]
     ciphertext = data[32:]
 
+    print("IV: ", IV)
+    print("TAG: ", tag)
+    print("CIPHERTEXT: ", ciphertext)
+
     # print(len(IV))
     # print(len(tag))
     # frame = IV + tag + ciphertext
@@ -60,7 +64,7 @@ def send_frame(ser, data, debug=False):
 
     frame = IV + tag + ciphertext
 
-    print(frame)
+    print("FRAME: ", frame)
     print(len(frame))
     ser.write(frame)  # Write the frame...  
 
@@ -78,7 +82,7 @@ def read_byte():
 def main():
     num_frames = 0
 
-    with open("/home/anushka/chunkychunkchunkchunkchonkydinosaurs/tools/protected_output.bin", "rb") as f:
+    with open("protected_output.bin", "rb") as f:
         data = f.read()
         f.close()
     num_frames = calc_num_frames(data)
