@@ -424,11 +424,9 @@ void load_firmware(void) {
     dec_result = decrypt(&f, &index, (&dec_frame)-> plaintext);
     dec_resp = check_decrypt(dec_result);
     uart_write(UART0, dec_resp);
-
-
-
-    // uint8_t type_resp = check_type(dec_frame, 'E');
-    // uart_write(UART0, type_resp);
+    type_resp = check_type(dec_frame, 'E');
+    uart_write(UART0, type_resp);
+    
    
     
     
