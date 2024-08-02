@@ -73,10 +73,10 @@ def read_byte():
         byte = ser.read(1)
     return byte
 
-def main():
+def update(infile):
     num_frames = 0
 
-    f = open("protected_output.bin", "rb")
+    f = open(infile, "rb")
     data = f.read()
     f.close()
     num_frames = calc_num_frames(data)
@@ -116,7 +116,7 @@ def main():
         # reading message type
         message_type = read_byte()
         if message_type == VERSION_ERROR:
-            print("Go kill yourself")
+            print("Version error")
             return
         elif message_type == TYPE_ERROR:
             print("Problem recieving frame")
@@ -132,4 +132,11 @@ def main():
 
 if __name__ == "__main__":
     #calc num frames works
-    main()
+    parser = argparse.ArgumentParser(description="Firmware Update Tool")
+    parser.add_argument("--infile", help="Path to the firmware image to send.", required=True)
+    args = parser.parse_args()
+    # -------------------------------- END -------------------------------- #
+    
+    
+    # Calls protect_firmware function
+    update(infile=args.infile)
