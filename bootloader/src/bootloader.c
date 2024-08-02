@@ -293,7 +293,7 @@ void load_firmware(void) {
     pltxt_start_frame * dec_start_frame_ptr = (pltxt_start_frame * ) &dec_frame;
 
 
-    // ------------------------------------------- READ START FRAME ------------------------------------------- //
+    // ------------------------------------------- READ START FRAMES ------------------------------------------- //
 
 
     // Sending the result (either OK msg or NOT OK Message) of reading the first START frame
@@ -340,8 +340,6 @@ void load_firmware(void) {
         uart_write(UART0, OK);
     }
 
-    // --------------- code above works --------------- //
-
     // calculates the number of startframes that will be read in
     uint32_t num_start_frames = 1;
     uint32_t msg_size = dec_start_frame_ptr -> msg_size;
@@ -353,7 +351,7 @@ void load_firmware(void) {
 
     //need to add flash at some point here
     
-    //i needs to start at 1 because we already read 1 frame
+    //variable "i" needs to start at 1 because we already read 1 frame
     uint8_t hasPadding = 1;
     if (msg_size % FRAME_MSG_LEN == 0) {
         hasPadding = 0;
@@ -375,10 +373,24 @@ void load_firmware(void) {
         // }
     }    
 
-    int YAYAYAY = 0;
-    
+    // ------------------------------------------- END OF READ START FRAMES ------------------------------------------- //
 
-     // ------------------------------------------- END OF READ START FRAME ------------------------------------------- //
+
+    // ------------------------------------------- READ DATA FRAMES ------------------------------------------- //
+
+    int num_body_frames;
+    uint32_t data_size = dec_start_frame_ptr -> total_size;
+
+    if (data_size % FRAME_BODY_LEN == 0) {
+        num_body_frames = (uint32_t) (data_size / FRAME_BODY_LEN);
+    } else {
+        num_body_frames = (uint32_t) (data_size / FRAME_BODY_LEN) + 1;
+    }
+    //should print 28
+    int fdklsfjkdlsjklsd = 0;
+    
+    
+    // ------------------------------------------- END OF READ BODY FRAMES ------------------------------------------- //
 
     /*NEXT CODE TO ADD:
     - Decrypt first frame, use decrypted results:
