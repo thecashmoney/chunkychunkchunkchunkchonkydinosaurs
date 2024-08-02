@@ -659,7 +659,7 @@ void boot_firmware(void) {
 
     // compute the release message address, and then print it
     uint16_t fw_size = *fw_size_address;
-    fw_release_message_address = (uint8_t *)(FW_BASE + fw_size);
+    fw_release_message_address = (uint8_t *) (FW_BASE + (fw_size + (FRAME_BODY_LEN - (fw_size % FRAME_BODY_LEN))));
     uart_write_str(UART0, (char *)fw_release_message_address);
 
     // Boot the firmware
