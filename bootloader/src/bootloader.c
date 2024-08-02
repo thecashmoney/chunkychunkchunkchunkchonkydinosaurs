@@ -303,8 +303,10 @@ void load_firmware(void) {
         if(version == 1) 
         {
             //initial configuration
-            *fw_version_address = (uint16_t)version;
-            *fw_size_address = (uint16_t)fw_size;
+            // *fw_version_address = (uint16_t)version;
+            // *fw_size_address = (uint16_t)fw_size;
+            uint32_t metadata = ((fw_size & 0xFFFF) << 16) | (version & 0xFFFF);
+            program_flash((uint8_t *) METADATA_BASE, (uint8_t *)(&metadata), 4);
         } else 
         {
             uart_write(UART0, VERSION_ERROR);
@@ -323,8 +325,10 @@ void load_firmware(void) {
     } else 
     {
         //change the value of version and size at the memory address referenced by fw_version_address and fw_size_address
-        *fw_version_address = (uint16_t) version;
-        *fw_size_address = (uint16_t) fw_size;
+        // *fw_version_address = (uint16_t) version;
+        // *fw_size_address = (uint16_t) fw_size;
+        uint32_t metadata = ((fw_size & 0xFFFF) << 16) | (version & 0xFFFF);
+        program_flash((uint8_t *) METADATA_BASE, (uint8_t *)(&metadata), 4);
     }
 
     //writes the frame type
@@ -338,24 +342,26 @@ void load_firmware(void) {
     // Numframes is the total number of start frames
     uint32_t num_frames = msg_size % FRAME_MSG_LEN == 0 ? (uint32_t) (msg_size / FRAME_MSG_LEN) : (uint32_t) (msg_size / FRAME_MSG_LEN) + 1;
     uint8_t has_padding = msg_size % FRAME_MSG_LEN != 0;
+    uint8_t *msg_location = (uint8_t *) (flash_address + (fw_size + (FRAME_BODY_LEN - (fw_size % FRAME_BODY_LEN))));
 
     if (msg_size <= FRAME_MSG_LEN) {
         if (has_padding) {
             // Find index of the padding in the release message string
             index = unpad(frame_dec_start_ptr->msg, msg_size);
+            frame_dec_start_ptr->msg[index] = '\0';
 
             // Writing the release message to after where the firmware will be
-            write_firmware(flash_address + fw_size, frame_dec_start_ptr->msg, index);
-            flash_address += index;
+            write_firmware(msg_location, frame_dec_start_ptr->msg, FRAME_MSG_LEN);
+            msg_location += FRAME_MSG_LEN;
         } else {
             // Writing the release message to after where the firmware will be
-            write_firmware(flash_address + fw_size, frame_dec_start_ptr->msg, FRAME_MSG_LEN);
-            flash_address += FRAME_MSG_LEN;
+            write_firmware(msg_location, frame_dec_start_ptr->msg, FRAME_MSG_LEN);
+            msg_location += FRAME_MSG_LEN;
         }
     } else {
         // Writing the release message to after where the firmware will be
-        write_firmware(flash_address + fw_size, frame_dec_start_ptr->msg, FRAME_MSG_LEN);
-        flash_address += FRAME_MSG_LEN;
+        write_firmware(msg_location, frame_dec_start_ptr->msg, FRAME_MSG_LEN);
+        msg_location += FRAME_MSG_LEN;
     }
 
     for (uint32_t i = 1; i < num_frames; i++) {
@@ -400,14 +406,15 @@ void load_firmware(void) {
         if ((i == num_frames - 1) && has_padding) {
             // Print out message, but unpadded
             uint32_t index = unpad(frame_dec_start_ptr->msg, FRAME_MSG_LEN);
+            frame_dec_start_ptr->msg[index] = '\0';
 
             // Writing the release message to after where the firmware will be
-            write_firmware(flash_address + fw_size, frame_dec_start_ptr->msg, index);
-            flash_address += index;
+            write_firmware(msg_location, frame_dec_start_ptr->msg, FRAME_MSG_LEN);
+            msg_location += FRAME_MSG_LEN;
         } else {
             // Writing the release message to after where the firmware will be
-            write_firmware(flash_address + fw_size, frame_dec_start_ptr->msg, FRAME_MSG_LEN);
-            flash_address += FRAME_MSG_LEN;
+            write_firmware(msg_location, frame_dec_start_ptr->msg, FRAME_MSG_LEN);
+            msg_location += FRAME_MSG_LEN;
         }
     }
 
@@ -528,16 +535,30 @@ int erase_pages(uint8_t *page_addr, uint32_t num_pages) {
     // Assuming 16mHz is the clock speed idk what it is or how that works but it works
     // Number after the * is the amount to wait in ms
     volatile uint32_t cycles = (16000000 / 1000) * 500;
+    uint32_t twelves = (uint32_t) (num_pages / 12);
     volatile uint32_t cycle = 0;
-    for (uint32_t page = 0; page < num_pages; page++) {
+    for (uint32_t twelve = 0; twelve < twelves; twelve++) {
+        cycle = 0;
+        for (uint32_t page = 0; page < 12; page++) {
+            if (FlashErase((uint32_t) page_addr) != 0) {
+                uart_write(UART0, TYPE_ERROR);  // Failure
+                return - 1;
+            }
+            page_addr += FLASH_PAGESIZE;
+        }
+        while (cycle < cycles) {
+            cycle++;
+        }
+    }
+    for (uint32_t page = 0; page < num_pages % 12; page++) {
         if (FlashErase((uint32_t) page_addr) != 0) {
             uart_write(UART0, TYPE_ERROR);  // Failure
             return - 1;
         }
         page_addr += FLASH_PAGESIZE;
-        while (cycle < cycles) {
-            cycle++;
-        }
+    }
+    while (cycle < cycles) {
+        cycle++;
     }
 
     return 0;  // Success
@@ -650,7 +671,7 @@ void boot_firmware(void) {
 
     // compute the release message address, and then print it
     uint16_t fw_size = *fw_size_address;
-    fw_release_message_address = (uint8_t *)(FW_BASE + fw_size);
+    fw_release_message_address = (uint8_t *) (FW_BASE + (fw_size + (FRAME_BODY_LEN - (fw_size % FRAME_BODY_LEN))));
     uart_write_str(UART0, (char *)fw_release_message_address);
 
     // Boot the firmware

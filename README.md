@@ -150,8 +150,7 @@ openocd -f /usr/share/openocd/scripts/interface/ti-icdi.cfg -f /usr/share/openoc
 ```
 
 Start GDB and connect to the main OpenOCD debug port:
-```bash
-gdb-multiarch -ex "target extended-remote localhost:3333" bootloader/bin/bootloader.axf
+```ba
 ```
 
 Go to `main` function and set a breakpoint
