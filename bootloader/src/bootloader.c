@@ -1,6 +1,6 @@
 // Copyright 2024 The MITRE Corporation. ALL RIGHTS RESERVED
 // Approved for public release. Distribution unlimited 23-02181-25.
-
+//-----------------------------------IMPORTS-----------------------------------
 // Miscellaneous Imports
 #include "bootloader.h"
 #include "../lib/wolfssl/wolfssl/wolfcrypt/error-crypt.h"
@@ -30,7 +30,10 @@
 #include "wolfssl/wolfcrypt/sha.h"
 #include "wolfssl/wolfcrypt/rsa.h"
 
-// Forward Declarations
+//-----------------------------------END IMPORTS-----------------------------------
+
+//------------------------- FORWARD DECLARATIONS AND TYPEDEFS -------------------------
+
 void load_firmware(void);
 void boot_firmware(void);
 void uart_write_hex_bytes(uint8_t, uint8_t *, uint32_t);
@@ -63,24 +66,21 @@ int write_firmware(uint8_t *mem_addr, uint8_t *firmware, uint32_t data_len);
 #define OK ((unsigned char)0x04)
 #define ERROR ((unsigned char)0x05)
 
-// #define OK_DECRYPT ((unsigned char)0x05)
-// #define DECRYPT_FAIL ((unsigned char)0x07)
-// #define INTEGRITY_ERROR ((unsigned char)0x06)
-// #define VERSION_ERROR ((unsigned char)0x08)
-// #define TYPE_ERROR ((unsigned char)0x09)
-// #define STOP ((unsigned char)0x10)
-
 // Two characters to start off interaction between bl and update
 #define UPDATE ((unsigned char)'U')
 #define BOOT ((unsigned char)'B')
-
 
 // Device metadata
 uint16_t * fw_version_address = (uint16_t *)METADATA_BASE;
 uint16_t * fw_size_address = (uint16_t *)(METADATA_BASE + 2);
 uint8_t * fw_release_message_address;
 
+// Defining a character array to hold the AESKEY
 uint8_t key[] = AESKEY;
+
+//------------------------- END FORWARD DECLARATIONS AND TYPEDEFS -------------------------
+
+//------------------------- DEBUG DELAY AND LED -------------------------
 
 // Delay to allow time to connect GDB
 // green LED as visual indicator of when this function is running
@@ -107,6 +107,10 @@ uint8_t key[] = AESKEY;
     GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_3, 0x0);
 }
 
+//------------------------- END DEBUG DELAY AND LED -------------------------
+
+//------------------------- MAIN FUNCTION -------------------------
+
 int main(void) {
 
     // Enable the GPIO port that is used for the on-board LED.
@@ -119,15 +123,11 @@ int main(void) {
     // enable the GPIO pin for digital function.
     GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_3);
 
-    // debug_delay_led();
-
     initialize_uarts(UART0);
-
-    // uart_write_str(UART0, "Welcome to the BWSI Vehicle Update Service!\n");
-    // uart_write_str(UART0, "Send \"U\" to update, and \"B\" to run the firmware.\n");
 
     int resp;
     while (1) {
+        // Receives the instruction (either U or B)
         uint32_t instruction = uart_read(UART0, BLOCKING, &resp);
 
         if (instruction == UPDATE) {
@@ -159,6 +159,7 @@ void receive_IV_tag(uint8_t *IV, uint8_t *tag)
         IV[i] = (uint8_t) rcv;
     }
 
+    // resetting the read and rcv variables
     read = 0;
     rcv = 0;
 
@@ -200,7 +201,7 @@ int unpad(uint8_t* plaintext, uint32_t plaintext_length)
 * Reads the packets sent by fw_update.py 
 * Sends the ciphertext to decrypt_ciphertext()
 */
-// Reads the packets sent by fw_update.py 
+// Reads the packets sent by fw_update.py  (OK = success  |  ERROR = failure)
 void read_frame(generic_frame *frame) 
 {
     // read the IV and tag and store them in the generic_frame struct
@@ -211,38 +212,19 @@ void read_frame(generic_frame *frame)
 
     // send back a null byte 
     return OK;
-
-    // // TODO: Remove the testing for loops later
-    // for (int i=0; i<16; i++)
-    // {
-    //     uart_write(UART0, frame->IV[i]);
-    // }    
-    // for (int i=0; i<16; i++)
-    // {
-    //     uart_write(UART0, frame->tag[i]);
-    // }
-    // for (int i=0; i<480; i++)
-    // {
-    //     uart_write(UART0, frame->ciphertext[i]);
-    // }
 }
 
 
-void decrypt_start_frame(uint32_t index, generic_frame f, generic_decrypted_frame dec_frame, pltxt_start_frame * dec_f) {
-    
-}
- /*
- * Load the firmware into flash.
- */
-
-uint8_t check_type(generic_decrypted_frame f, char expected_frame_type) {
-    //START: S, END = E, DATA FRAMES = B
+ // Checks the type and if valid, flashes the firmware
+ //START: S, END = E, DATA FRAMES = B
+uint8_t check_type(generic_decrypted_frame f, char expected_frame_type, uint8_t * flash_addr, uint32_t index) {
     if(expected_frame_type == 'S') {
         pltxt_start_frame * dec_start_frame_ptr = &f;
         if(dec_start_frame_ptr -> type != TYPE_START) {
        // uart_write(UART0, ERROR);
             return ERROR;
         } else {
+            write_firmware(flash_addr, &(dec_start_frame_ptr->msg), index);
             return OK;
         }
     } else if(expected_frame_type == 'E') {
@@ -266,6 +248,7 @@ uint8_t check_type(generic_decrypted_frame f, char expected_frame_type) {
     }
  }
 
+// Checks if the chonk was successfully decrypted (OK = success  |  ERROR = failure)
 uint8_t check_decrypt(int dec_result) {
     if(dec_result == 0) {
         return OK;
@@ -310,7 +293,11 @@ void load_firmware(void) {
     uart_write(UART0, dec_resp);
 
     // YAYAY WORKS!!!!!!!!!! <33333
-    uint8_t type_resp = check_type(dec_frame, 'S');
+    //uint8_t type_resp = check_type(dec_frame, 'S');
+    uint8_t type_resp = OK;
+    if(dec_start_frame_ptr -> type != TYPE_START) {
+            type_resp =  ERROR;
+    }
     uart_write(UART0, type_resp);
     
     //type confirmed works
@@ -360,14 +347,18 @@ void load_firmware(void) {
         uint8_t dec_resp = check_decrypt(dec_result);
         uart_write(UART0, dec_resp);
 
-        uint8_t type_resp = check_type(dec_frame, 'S');
-        uart_write(UART0, type_resp);
-        index = i + 1;
-
-
         if((i == num_start_frames - 1) && hasPadding) {
             uint32_t unpad_index = unpad(dec_start_frame_ptr->msg, FRAME_MSG_LEN);
-        }
+            uint8_t type_resp = check_type(dec_frame, 'S', flash_address, unpad_index);
+            flash_address += unpad_index;
+            int jkldsjkfljklfdsjkl = 0;
+            uart_write(UART0, type_resp);
+        } else {
+             uint8_t type_resp = check_type(dec_frame, 'S', flash_address, FRAME_MSG_LEN);
+             flash_address += FRAME_MSG_LEN;
+             uart_write(UART0, type_resp);  
+        }       
+ index = i + 1;
     }    
 
     // ------------------------------------------- END OF READ START FRAMES ------------------------------------------- //
@@ -401,7 +392,7 @@ void load_firmware(void) {
         uart_write(UART0, dec_resp);
         index++;
 
-        uint8_t type_resp = check_type(dec_frame, 'B');
+        uint8_t type_resp = check_type(dec_frame, 'B', flash_address, index);
         uart_write(UART0, type_resp);
 
         if((i == num_body_frames - 1) && bodyHasPadding) {
@@ -420,7 +411,7 @@ void load_firmware(void) {
     dec_result = decrypt(&f, &index, (&dec_frame)-> plaintext);
     dec_resp = check_decrypt(dec_result);
     uart_write(UART0, dec_resp);
-    type_resp = check_type(dec_frame, 'E');
+    type_resp = check_type(dec_frame, 'E',flash_address, index);
     uart_write(UART0, type_resp);
 
     // ------------------------------------------- END OF READ END FRAME ------------------------------------------- //
