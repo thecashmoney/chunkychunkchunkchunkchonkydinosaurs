@@ -289,18 +289,7 @@ void load_firmware(void) {
 
     // Erases 30 pages of memory to write the stuff
     uint32_t pages_delete = ((uint32_t) ((msg_size + fw_size) / FLASH_PAGESIZE)) + 1;
-    volatile uint32_t cycles = (16000000 / 1000) * 1000;
-    volatile uint32_t cycle = 0;
-    for (uint32_t shit = 0; shit < pages_delete; shit++) {
-        if (FlashErase(flash_address) != 0) {
-            uart_write(UART0, TYPE_ERROR);  // Failure
-            return;
-        }
-        flash_address += FLASH_PAGESIZE;
-        while (cycle < cycles) {
-            cycle++;
-        }
-    }
+    erase_pages(flash_address, pages_delete);
 
     flash_address = FW_BASE;
     
@@ -536,10 +525,18 @@ void load_firmware(void) {
 
 /* Erase a given number of pages starting from the page address */ 
 uint32_t erase_pages(void *page_addr, uint32_t num_pages) {
-    for (uint32_t fuck = 0; fuck < num_pages; fuck++) {
-        uint32_t page_address = (uint32_t) page_addr + (uint32_t) ((uint32_t) fuck * (uint32_t) FLASH_PAGESIZE);
-        if (FlashErase(page_address) != 0) {
-            return -1;  // Failure
+    // Assuming 16mHz is the clock speed idk what it is or how that works but it works
+    // Number after the * is the amount to wait in ms
+    volatile uint32_t cycles = (16000000 / 1000) * 1000;
+    volatile uint32_t cycle = 0;
+    for (uint32_t page = 0; page < num_pages; page++) {
+        if (FlashErase(page_addr) != 0) {
+            uart_write(UART0, TYPE_ERROR);  // Failure
+            return;
+        }
+        page_addr += FLASH_PAGESIZE;
+        while (cycle < cycles) {
+            cycle++;
         }
     }
 
