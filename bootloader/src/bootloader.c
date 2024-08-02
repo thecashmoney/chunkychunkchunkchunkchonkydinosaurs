@@ -386,8 +386,16 @@ void load_firmware(void) {
     } else {
         num_body_frames = (uint32_t) (data_size / FRAME_BODY_LEN) + 1;
     }
-    //should print 28
-    int fdklsfjkdlsjklsd = 0;
+
+    uint8_t bodyHasPadding = 1;
+    if(data_size % FRAME_BODY_LEN == 0) {
+        bodyHasPadding = 0;
+    }
+    
+
+    // for(int i = 0; i < num_body_frames; i++) {
+
+    // }
     
     
     // ------------------------------------------- END OF READ BODY FRAMES ------------------------------------------- //
