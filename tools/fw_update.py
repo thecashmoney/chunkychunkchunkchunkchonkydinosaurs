@@ -51,14 +51,12 @@ def send_frame(ser, data, debug=False):
     tag = data[16:32]
     ciphertext = data[32:]
 
-    print("IV: ", IV)
-    print("TAG: ", tag)
-    print("CIPHERTEXT: ", ciphertext)
+    print("IV: ", IV.hex())
+    print("TAG: ", tag.hex())
+    print("CIPHERTEXT: ", ciphertext.hex())
 
     frame = IV + tag + ciphertext
 
-    print("FRAME: ", frame)  # TODO: Remove this debug
-    print(len(frame))  # TODO: Remove th debug
     ser.write(frame)  # Write the frame...  
 
 
@@ -71,7 +69,7 @@ def read_byte():
 def main():
     num_frames = 0
 
-    with open("protected_output.bin", "rb") as f:
+    with open("/home/hacker/chunkychunkchunkchunkchonkydinosaurs/tools/protected_output.bin", "rb") as f:
         data = f.read()
         f.close()
     num_frames = calc_num_frames(data)
@@ -79,12 +77,12 @@ def main():
 
     print("Number of frames:", num_frames)
     wait_for_update()
+    
 
     while frames_sent != num_frames:
         print("Frame.")
         current_frame = data[frames_sent * 512: (frames_sent + 1) * 512]
         send_frame(ser, current_frame)
-        frames_sent += 1
     
         # if(response != RESP_OK):
         #     #screaming sobbing dying
@@ -103,10 +101,13 @@ def main():
         if type_error != RESP_OK:
             return
 
-        version_error = read_byte()  
-        print("Version byte", version_error)   
-        if version_error != RESP_OK:
-            return
+
+        if(frames_sent == 0): 
+            version_error = read_byte()  
+            print("Version byte", version_error)   
+            if version_error != RESP_OK:
+                return
+        
         frames_sent += 1
                     
     ser.close()

@@ -148,7 +148,8 @@ int main(void) {
 // Reads in the IV and the tag from fw_update.py
 void receive_IV_tag(uint8_t *IV, uint8_t *tag)
 {
-    int read;
+    //int read;  // og reference design code
+    uint8_t read;
     uint32_t rcv;
 
     // Reads the IV
@@ -172,7 +173,7 @@ void receive_IV_tag(uint8_t *IV, uint8_t *tag)
 // Reads in the IV and the tag from fw_update.py
 void receive_ciphertext(uint8_t *ciphertext)
 {
-    int read;
+    uint8_t read;
     uint32_t rcv;
 
     // Reads the ciphertext
@@ -349,6 +350,8 @@ void load_firmware(void) {
     } else {
         num_start_frames = (msg_size / FRAME_MSG_LEN) + 1;
     }
+
+    //need to add flash at some point here
     
     //i needs to start at 1 because we already read 1 frame
     uint8_t hasPadding = 1;
@@ -356,25 +359,23 @@ void load_firmware(void) {
         hasPadding = 0;
     }
 
-    int yayayayya = 0;
-    // for(int i = 1; i < num_start_frames; i++) {
-    //     read()
-    // }
-    
+    for(int i = 1; i < num_start_frames; i++) {
+        read_frame(&f);
 
-    // uint8_t hasPadding = msg_size % FRAME_MSG_LEN == 0;
-    // //not sure how the uint8t will get assigned the value, need to check the has padding variable
+        int dec_result = decrypt(&f, &i, (&dec_frame)-> plaintext);
+        uint8_t dec_resp = check_decrypt(dec_result);
+        uart_write(UART0, dec_resp);
 
-    // int fjlksafjlksjfklds; //1st break here
-    // for(int i = 1; i < num_start_frames; i++) {
+        uint8_t type_resp = check_type(dec_frame, 'S');
+        uart_write(UART0, type_resp);
 
-        
 
-    //     if((i == num_start_frames - 1) && hasPadding) {
-    //         //unpad the frame
-    //     }
-    // }    
+        // if((i == num_start_frames - 1) && hasPadding) {
+        //     //unpad the frame
+        // }
+    }    
 
+    int YAYAYAY = 0;
     
 
      // ------------------------------------------- END OF READ START FRAME ------------------------------------------- //
