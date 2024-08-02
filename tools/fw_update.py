@@ -107,6 +107,7 @@ def main():
         print("Version byte", version_error)   
         if version_error != RESP_OK:
             return
+        frames_sent += 1
                     
     ser.close()
 

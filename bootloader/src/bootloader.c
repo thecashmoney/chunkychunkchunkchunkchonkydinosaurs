@@ -349,7 +349,7 @@ void load_firmware(void) {
     } else {
         num_start_frames = (msg_size / FRAME_MSG_LEN) + 1;
     }
-    int YAYAYAYAYYY;
+    
 
     // //i needs to start at 1 because we already read 1 frame
     // uint8_t hasPadding = msg_size % FRAME_MSG_LEN == 0;
