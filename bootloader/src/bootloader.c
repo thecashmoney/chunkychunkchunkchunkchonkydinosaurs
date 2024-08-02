@@ -303,8 +303,10 @@ void load_firmware(void) {
         if(version == 1) 
         {
             //initial configuration
-            *fw_version_address = (uint16_t)version;
-            *fw_size_address = (uint16_t)fw_size;
+            // *fw_version_address = (uint16_t)version;
+            // *fw_size_address = (uint16_t)fw_size;
+            uint32_t metadata = ((fw_size & 0xFFFF) << 16) | (version & 0xFFFF);
+            program_flash((uint8_t *) METADATA_BASE, (uint8_t *)(&metadata), 4);
         } else 
         {
             uart_write(UART0, VERSION_ERROR);
@@ -323,8 +325,10 @@ void load_firmware(void) {
     } else 
     {
         //change the value of version and size at the memory address referenced by fw_version_address and fw_size_address
-        *fw_version_address = (uint16_t) version;
-        *fw_size_address = (uint16_t) fw_size;
+        // *fw_version_address = (uint16_t) version;
+        // *fw_size_address = (uint16_t) fw_size;
+        uint32_t metadata = ((fw_size & 0xFFFF) << 16) | (version & 0xFFFF);
+        program_flash((uint8_t *) METADATA_BASE, (uint8_t *)(&metadata), 4);
     }
 
     //writes the frame type
