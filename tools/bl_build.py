@@ -26,10 +26,12 @@ BOOTLOADER_DIR = os.path.join(REPO_ROOT, "bootloader")
 def update_line(headerFile, varUpdate, value: bytes):
     # Make sure the varUpdate is in all caps
     varUpdate = varUpdate.upper()
+    lines = []
 
-    # Read the existing content of the header file
-    with open(headerFile, 'r') as file:
-        lines = file.readlines()
+    if os._exists(headerFile):
+        # Read the existing content of the header file
+        with open(headerFile, 'r') as file:
+            lines = file.readlines()
 
     # define pattern and newMsg
     pattern = f'define {varUpdate}'  # defines the pattern to look for
@@ -42,8 +44,10 @@ def update_line(headerFile, varUpdate, value: bytes):
             break
     else:
         # If the variable was not found, add it to the end of the file
-        lines[-1] = newMsg
-        lines.append('\n#endif')
+        if len(lines) > 0:
+            lines[-1] = newMsg
+        else:
+            lines.append(newMsg)
 
     # Write the updated content back to the header file
     with open(headerFile, 'w') as file:
