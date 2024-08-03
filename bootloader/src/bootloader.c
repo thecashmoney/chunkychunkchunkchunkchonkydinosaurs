@@ -37,6 +37,7 @@ void uart_write_hex_bytes(uint8_t, uint8_t *, uint32_t);
 int decrypt(generic_frame *frame, uint32_t *frame_num, uint8_t *plaintext);
 int erase_pages(uint8_t *page_addr, uint32_t num_pages);
 int write_firmware(uint8_t *mem_addr, uint8_t *firmware, uint32_t data_len);
+long program_flash(void* page_addr, unsigned char * data, unsigned int data_len);
 
 // Firmware Constants
 #define METADATA_BASE 0xFC00 // base address of version and firmware size in Flash
@@ -637,4 +638,50 @@ int decrypt(generic_frame *frame, uint32_t *frame_num, uint8_t *plaintext) {
     );
 
     return result;
+}
+
+/*
+ * Program a stream of bytes to the flash.
+ * This function takes the starting address of a 1KB page, a pointer to the
+ * data to write, and the number of byets to write.
+ *
+ * This functions performs an erase of the specified flash page before writing
+ * the data.
+ */
+long program_flash(void* page_addr, unsigned char * data, unsigned int data_len) {
+    uint32_t word = 0;
+    int ret;
+    int i;
+
+    // Erase next FLASH page
+    FlashErase((uint32_t) page_addr);
+
+    // Clear potentially unused bytes in last word
+    // If data not a multiple of 4 (word size), program up to the last word
+    // Then create temporary variable to create a full last word
+    if (data_len % FLASH_WRITESIZE) {
+        // Get number of unused bytes
+        int rem = data_len % FLASH_WRITESIZE;
+        int num_full_bytes = data_len - rem;
+
+        // Program up to the last word
+        ret = FlashProgram((unsigned long *)data, (uint32_t) page_addr, num_full_bytes);
+        if (ret != 0) {
+            return ret;
+        }
+
+        // Create last word variable -- fill unused with 0xFF
+        for (i = 0; i < rem; i++) {
+            word = (word >> 8) | (data[num_full_bytes + i] << 24); // Essentially a shift register from MSB->LSB
+        }
+        for (i = i; i < 4; i++) {
+            word = (word >> 8) | 0xFF000000;
+        }
+
+        // Program word
+        return FlashProgram(&word, (uint32_t) page_addr + num_full_bytes, 4);
+    } else {
+        // Write full buffer of 4-byte words
+        return FlashProgram((unsigned long *)data, (uint32_t) page_addr, data_len);
+    }
 }
