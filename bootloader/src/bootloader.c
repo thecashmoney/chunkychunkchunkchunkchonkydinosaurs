@@ -604,48 +604,6 @@ int write_firmware(uint8_t* page_addr, uint8_t *firmware, uint32_t data_len) {
     return FlashProgram((unsigned long *)firmware, (uint32_t) page_addr, data_len);
 }
 
-
-
-long program_flash(void* page_addr, unsigned char * data, unsigned int data_len) {
-    uint32_t word = 0;
-    int ret;
-    int i;
-
-    // // Erase next 30 FLASH pages
-    // erase_page(page_addr, 30);  // i think this is passing in the right address 
-    // FlashErase((uint32_t) page_addr);
-
-
-    // Clear potentially unused bytes in last word
-    // If data not a multiple of 4 (word size), program up to the last word
-    // Then create temporary variable to create a full last word
-    if (data_len % FLASH_WRITESIZE) {
-        // Get number of unused bytes
-        int rem = data_len % FLASH_WRITESIZE;
-        int num_full_bytes = data_len - rem;
-
-        // Program up to the last word
-        ret = FlashProgram((unsigned long *)data, (uint32_t) page_addr, num_full_bytes);
-        if (ret != 0) {
-            return ret;
-        }
-
-        // Create last word variable -- fill unused with 0xFF
-        for (i = 0; i < rem; i++) {
-            word = (word >> 8) | (data[num_full_bytes + i] << 24); // Essentially a shift register from MSB->LSB
-        }
-        for (i = i; i < 4; i++) {
-            word = (word >> 8) | 0xFF000000;
-        }
-
-        // Program word
-        return FlashProgram(&word, (uint32_t) page_addr + num_full_bytes, 4);
-    } else {
-        // Write full buffer of 4-byte words
-        return FlashProgram((unsigned long *)data, (uint32_t) page_addr, data_len);
-    }
-}
-
 void boot_firmware(void) {
     // Check if firmware loaded
     int fw_present = 0;
@@ -670,31 +628,6 @@ void boot_firmware(void) {
     // Boot the firmware
     __asm("LDR R0,=0x10001\n\t"
           "BX R0\n\t");
-}
-
-void uart_write_hex_bytes(uint8_t uart, uint8_t * start, uint32_t len) {
-    for (uint8_t * cursor = start; cursor < (start + len); cursor += 1) {
-        uint8_t data = *((uint8_t *)cursor);
-        uint8_t right_nibble = data & 0xF;
-        uint8_t left_nibble = (data >> 4) & 0xF;
-        char byte_str[3];
-        if (right_nibble > 9) {
-            right_nibble += 0x37;
-        } else {
-            right_nibble += 0x30;
-        }
-        byte_str[1] = right_nibble;
-        if (left_nibble > 9) {
-            left_nibble += 0x37;
-        } else {
-            left_nibble += 0x30;
-        }
-        byte_str[0] = left_nibble;
-        byte_str[2] = '\0';
-
-        uart_write_str(uart, byte_str);
-        uart_write_str(uart, " ");
-    }
 }
 
 // Decrypt the frame
