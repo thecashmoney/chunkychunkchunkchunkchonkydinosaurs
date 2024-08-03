@@ -489,26 +489,26 @@ void load_firmware(void) {
             return;
         }
 
-        // Writing the release message to after where the firmware will be
-        write_firmware(flash_address, frame_dec_body_ptr->plaintext, FRAME_BODY_LEN);
-        flash_address += FRAME_BODY_LEN;
+        // If there is an unpadded frame and if this is the last frame, unpad it
+        if ((i == num_frames - 1) && (fw_size % FRAME_BODY_LEN != 0)) {
+            // Get index of padding and put a null byte there
+            uint32_t index = unpad(frame_dec_body_ptr->plaintext, FRAME_BODY_LEN);
+            frame_dec_body_ptr->plaintext[index] = '\0';
+
+            // Flashing firmware
+            write_firmware(flash_address, frame_dec_body_ptr->plaintext, FRAME_BODY_LEN);
+            flash_address += FRAME_BODY_LEN;
+        } else {
+            // Flashing firmware
+            write_firmware(flash_address, frame_dec_body_ptr->plaintext, FRAME_BODY_LEN);
+            flash_address += FRAME_BODY_LEN;
+        }
 
         // Everything worked so status is ok
         uart_write(UART0, OK);
 
         // Incrementing amount of frames we've recieved by 1
         frame_index++;
- 
-        // If there is an unpadded frame and if this is the last frame, unpad it
-        if ((i == num_frames - 1) && (fw_size % FRAME_BODY_LEN != 0)) {
-            // Print out unpadded message
-            uint32_t index = unpad(frame_dec_body_ptr->plaintext, FRAME_BODY_LEN);
-            // frame_dec_body_ptr->plaintext[index] = '\0';
-            // insert function here to write to flash here (unpadded firmware data)
-        } else {
-            // Print out firmware stuff - remove later
-            // insert function here to write to flash here (full frame of firmware data)
-        }
     }
     
     /* -------------------------------- End of code for reading body frames, starting read for end frame -------------------------------- */
