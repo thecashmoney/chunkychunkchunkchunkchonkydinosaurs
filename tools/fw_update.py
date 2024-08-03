@@ -136,4 +136,4 @@ if __name__ == "__main__":
     parser.add_argument("--infile", help="Path to the firmware image to protect.", required=True)
     args = parser.parse_args()
 
-    main()
+    update(args.infile)

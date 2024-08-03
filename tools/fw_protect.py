@@ -51,24 +51,24 @@ def ceildiv(a, b):
     return -(a // -b)
 
 # This is the "main" function
-def protect_firmware(infile, version, message):
+def protect_firmware(infile, version, message, outfile):
 
     # Load firmware binary from infile
     with open(infile, "rb") as fp:
         firmware = fp.read()
     # calls start_protect to protect the start message frames
-    index = start_protect(len(firmware), version, message)
+    index = start_protect(len(firmware), version, message, outfile)
     
     # calls protect_body to protect the data message frames
-    index = protect_body(index, firmware)
+    index = protect_body(index, firmware, outfile)
 
     # calls protect_end to protect the end message frames
-    protect_end(index)
+    protect_end(index, outfile)
     #print("Number of frames:", protect_end(index) + 1)
 
 
 # Protects the start message
-def start_protect(size: int, version: int, message: str):
+def start_protect(size: int, version: int, message: str, outfile):
     """
     Start message creation and encryption
     
@@ -134,7 +134,7 @@ def start_protect(size: int, version: int, message: str):
 
     
     # -------------------------------- WRITE CIPHERTEXT TO protected_output -------------------------------- #
-    with open("protected_output.bin", "wb") as f:
+    with open(outfile, "wb") as f:
         for i in outputMsg:
             iv, tag, ciphertext = i
             f.write(iv + tag + ciphertext)
@@ -144,7 +144,7 @@ def start_protect(size: int, version: int, message: str):
 
 
 # Protects the data msg frames 
-def protect_body(frame_index: int, data: bytes):
+def protect_body(frame_index: int, data: bytes, outfile):
     """
     Body message creation and encryption
     
@@ -205,7 +205,7 @@ def protect_body(frame_index: int, data: bytes):
         frame_index += 1
 
     # Putting all the data frames in the protected output thing
-    with open("protected_output.bin", "ab") as f:
+    with open(outfile, "ab") as f:
         f.write(body)
 
     # Return the entire protected firmware
@@ -213,7 +213,7 @@ def protect_body(frame_index: int, data: bytes):
 
 
 # Protects the end_msg frames
-def protect_end(frame_index):
+def protect_end(frame_index, outfile):
     """
     End message creation and encryption
     
@@ -236,7 +236,7 @@ def protect_end(frame_index):
     # -------------------------------- END -------------------------------- #
     
     # -------------------------------- WRITE CIPHERTEXT TO protected_output -------------------------------- #
-    with open("protected_output.bin", "ab") as f:
+    with open(outfile, "ab") as f:
         f.write(iv + tag + ciphertext)
     # -------------------------------- END -------------------------------- #
     
@@ -248,9 +248,11 @@ if __name__ == "__main__":
     parser.add_argument("--infile", help="Path to the firmware image to protect.", required=True)
     parser.add_argument("--version", help="Version number of this firmware.", required=True)
     parser.add_argument("--message", help="Release message for this firmware.", required=True)
+    parser.add_argument("--outfile", help="File for the output of this program.", required=True)
+    
     args = parser.parse_args()
     # -------------------------------- END -------------------------------- #
     
     
     # Calls protect_firmware function
-    protect_firmware(infile=args.infile, version=int(args.version), message=args.message)
+    protect_firmware(infile=args.infile, version=int(args.version), message=args.message, outfile=args.outfile)
