@@ -6,7 +6,6 @@
 #include "../lib/wolfssl/wolfssl/wolfcrypt/error-crypt.h"
 #include "../inc/secrets.h"
 #include "../lib/wolfssl/wolfssl/wolfcrypt/error-crypt.h"
-#include "../inc/secrets.h"
 #include "driverlib/uart.h"
 
 // Hardware Imports
