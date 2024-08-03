@@ -227,6 +227,14 @@ void read_frame(generic_frame *frame)
  * Load the firmware into flash.
  */
 void load_firmware(void) {
+    /******************************************************************************
+     *                                                                            *
+     * Function:    load_firmware                                                 *
+     * Description: Loads the firmware by reading encrypted frames, decrypting    *
+     *              them, and writing the decrypted data to flash memory.         *
+     *                                                                            *
+     ******************************************************************************/
+
     // Address to flash metadata and firmware to
     uint8_t *flash_address = (uint8_t *) FW_BASE;
 
@@ -250,10 +258,10 @@ void load_firmware(void) {
     // Sending the result (either OK msg or NOT OK Message) of reading the first START frame
     read_frame(frame_enc_ptr);
 
-    //Decrypt boilerplate :fire: :fire: :fire:
+    // Decrypt boilerplate :fire: :fire: :fire:
     int dec_result = decrypt(frame_enc_ptr, &frame_index, frame_dec_ptr->plaintext);
 
-    //While decryption result is not 0, resend the frame until max decrypts is hit. Otherwise write an OK message.
+    // While decryption result is not 0, resend the frame until max decrypts is hit. Otherwise write an OK message.
     if (dec_result == 0) 
     {
         uart_write(UART0, OK_DECRYPT);
@@ -263,6 +271,7 @@ void load_firmware(void) {
         tries = 1;
         while (tries <= MAX_DECRYPTS && (dec_result != 0)) 
         {
+            // Reading a new frame until there isn't a problem transmitting (it's so rare we'll set tolerance to 1)
             uart_write(UART0, INTEGRITY_ERROR);
             read_frame(frame_enc_ptr);
             dec_result = decrypt(frame_enc_ptr, &frame_index, frame_dec_ptr->plaintext);
@@ -286,9 +295,11 @@ void load_firmware(void) {
     uint32_t version = frame_dec_start_ptr->version_num;
     uint32_t fw_size = frame_dec_start_ptr->total_size;
     uint32_t msg_size = frame_dec_start_ptr->msg_size;
+    // Total firmware size plus a bit of padding
+    uint32_t total_fw_size = (fw_size + (FRAME_BODY_LEN - (fw_size % FRAME_BODY_LEN)));
 
-    // Erases 30 pages of memory to write the stuff
-    uint32_t pages_delete = ((uint32_t) ((msg_size + fw_size) / FLASH_PAGESIZE)) + 1;
+    // Erases enough pages of memory to write the firmware, some padding, and the release message
+    uint32_t pages_delete = ((uint32_t) ((msg_size + total_fw_size) / FLASH_PAGESIZE)) + 1;
     erase_pages(flash_address, pages_delete);
 
     flash_address = FW_BASE;
@@ -344,12 +355,12 @@ void load_firmware(void) {
     frame_index++;
 
 
-
     // Numframes is the total number of start frames
     uint32_t num_frames = msg_size % FRAME_MSG_LEN == 0 ? (uint32_t) (msg_size / FRAME_MSG_LEN) : (uint32_t) (msg_size / FRAME_MSG_LEN) + 1;
     uint8_t has_padding = msg_size % FRAME_MSG_LEN != 0;
     uint8_t *msg_location = (uint8_t *) (flash_address + (fw_size + (FRAME_BODY_LEN - (fw_size % FRAME_BODY_LEN))));
 
+    // If there is only 1 frame, just write it (unpadded or padded)
     if (msg_size <= FRAME_MSG_LEN) {
         if (has_padding) {
             // Find index of the padding in the release message string
@@ -364,12 +375,15 @@ void load_firmware(void) {
             write_firmware(msg_location, frame_dec_start_ptr->msg, FRAME_MSG_LEN);
             msg_location += FRAME_MSG_LEN;
         }
-    } else {
+    }
+    // If there is more than 1 start frame, just write the one we have and then you can read more 
+    else {
         // Writing the release message to after where the firmware will be
         write_firmware(msg_location, frame_dec_start_ptr->msg, FRAME_MSG_LEN);
         msg_location += FRAME_MSG_LEN;
     }
 
+    // Reading and flashing the rest of the start frames' release messages (will not do anything if num_frames is 1)
     for (uint32_t i = 1; i < num_frames; i++) {
         // Read in the next frame + write success/fail message to fw update
         read_frame(frame_enc_ptr);
@@ -377,10 +391,11 @@ void load_firmware(void) {
         //Decrypt boilerplate :fire: :fire: :fire:
         dec_result = decrypt(frame_enc_ptr, &frame_index, frame_dec_ptr->plaintext);
 
-        //While decryption result is not 0, resend the frame until max decrypts is hit. Otherwise write an OK message.
+        // While decryption result is not 0, resend the frame until max decrypts is hit. Otherwise write an OK message.
         if (dec_result == 0) {
             uart_write(UART0, OK_DECRYPT);
         } else {
+            // Reading a new frame until there isn't a problem transmitting (it's so rare we'll set tolerance to 1)
             tries = 1;
             while (tries <= MAX_DECRYPTS && (dec_result != 0)) {
                 uart_write(UART0, INTEGRITY_ERROR);
