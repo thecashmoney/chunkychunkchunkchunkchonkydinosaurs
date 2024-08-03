@@ -8,26 +8,22 @@
 #include <stdint.h>
 #include <string.h>
 
-#define IV_LEN 16
-#define MAX_MSG_LEN 256
-
 // FLASH Constants
 #define FLASH_PAGESIZE 1024
 #define FLASH_WRITESIZE 4
 
 // Protocol Constants
-#define OK ((unsigned char)0x00)
 #define ERROR ((unsigned char)0x01)
 #define UPDATE ((unsigned char)'U')
 #define BOOT ((unsigned char)'B')
 
-// Data buffer sizes
-#define META_LEN 22 // Excludes message bytes
+// Frame constants
 #define IV_LEN 16
-#define MAX_MSG_LEN 256
-#define BLOCK_SIZE FLASH_PAGESIZE
-#define SIG_SIZE 256
-#define CHUNK_SIZE (BLOCK_SIZE + SIG_SIZE)
+#define MAC_LEN 16
+#define FRAME_MSG_LEN 464
+#define FRAME_BODY_LEN 476
+#define PLAINTEXT_MINUS_TAG 476
+#define PLAINTEXT_SIZE 480
 
 #define MAX_CHUNK_NO 32 // 30KB firmware + padding
 
@@ -38,13 +34,44 @@
 #define FW_LOADED 0
 #define FW_ERROR 1
 
-typedef struct fw_meta_s {
-    uint16_t    ver;                // Version of current fw being loaded
-    uint16_t    min_ver;            // Miniumum fw version (not updated when debug fw loaded) 
-    uint16_t    chunks;             // Length of fw in 1kb chunks
-    uint16_t    msgLen;             // Length of fw message in bytes
-    uint8_t     msg[MAX_MSG_LEN];   // fw release message
-} fw_meta_st;
+
+typedef struct pltxt_start_frame {
+    uint8_t     IV[16];
+    uint8_t     tag[16];
+    uint32_t    type;
+    uint32_t    version_num;
+    uint32_t    total_size;
+    uint32_t    msg_size;
+    uint8_t     msg[FRAME_MSG_LEN];
+} pltxt_start_frame;
+
+
+typedef struct pltxt_body_frame {
+    uint8_t     IV[16];
+    uint8_t     tag[16];
+    uint32_t    type;
+    uint8_t     plaintext[FRAME_BODY_LEN];
+} pltxt_body_frame;
+
+typedef struct generic_frame {
+    uint8_t             IV[16];
+    uint8_t             tag[16];
+    uint8_t             ciphertext[480];
+} generic_frame;
+
+typedef struct generic_decrypted_frame {
+    uint8_t             IV[16];
+    uint8_t             tag[16];
+    uint8_t             plaintext[PLAINTEXT_SIZE];
+
+} generic_decrypted_frame;
+
+typedef struct pltxt_end_frame {
+    uint8_t     IV[16];
+    uint8_t     tag[16];
+    uint32_t    type;
+    uint8_t     padding[PLAINTEXT_MINUS_TAG];
+} pltxt_end_frame;
 
 long program_flash(void* page_addr, unsigned char * data, unsigned int data_len);
 

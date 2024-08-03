@@ -1,28 +1,26 @@
 ![5xCD cover page](https://github.com/thecashmoney/chunkychunkchunkchunkchonkydinosaurs/blob/main/5xcdREADME.png?raw=true)
 
 
---------------------------------------- ORIGINAL TEXT ---------------------------------------
 # Cryptographic Automotive Software Handler and Bootloader (CrASHBoot)
 
-Installation and development guide for the most secure (TM) automotive bootloader on the planet! We guarentee that cars running our software will be unhackable (provided hacking is not attempted). Of all the automotive bootloaders, this is certainly one of them. Read on and tremble at our embedded security skillz.
+CrASHBoot is a secure automotive bootloader designed to ensure the safe updating and protection of your vehicle's firmware. This guide provides a detailed overview of how to install, build, and use CrASHBoot to manage your vehicle's firmware securely.
 
-### Internal Notes
+# Overview
 
-```
-//TODO: Make the design secure
-//TODO: Hire interns
-//TODO: Delete TODOs before publishing
-```
+CrASHBoot consists of three main components:
 
-I find myself trapped in the labyrinthine depths of my company, shackled by an unending torrent of menial tasks. My desk has become my prison, my workload, my jailer. I am buried under a mountain of code, my skills squandered on trivialities while critical applications do not get the attention they deserve. In a desperate attempt to keep up with the workload, I've had to rapidly create a functional, yet insecure, product. It's a risky move, one that fills me with dread. I haven't had the time to implement the necessary security goals of confidentiality, integrity, and authentication. If you are reading this: I implore you, proceed with caution. **Do not release this software.** It is potentially riddled with vulnerabilities and exposed to the most basic types of attacks. 
+1. Bootloader: Manages firmware updates and ensures only authorized firmware is installed.
+2. Tools: Scripts for building the bootloader, protecting the firmware, and updating the firmware.
 
-Please, send help. I need to escape this relentless cycle. I need a team of talented interns to tackle this challenge. Otherwise, I fear the worst.
+## How to Use
 
-### External Notes
+1. Build the Bootloader: Run bl_build.py to generate encryption keys and build the bootloader.
+2. Protect the Firmware: Run fw_protect.py with the required parameters to encrypt the firmware.
+3. Flash the Bootloader: Use lm4flash to flash the bootloader onto the microcontroller.
+3. Update the Firmware: Run fw_update.py to flash the protected firmware using the bootloader.
+4. Interact with the Bootloader: Use car-serial to boot the new firmware.
+Project Structure
 
-Ship it!
-
-# Project Structure
 ```
 ├── bootloader *
 │   ├── bin
@@ -47,119 +45,108 @@ Ship it!
 │   ├── fw_update.py
 │   ├── util.py
 ├── README.md
-
-Directories marked with * are part of the CrASHBoot system
 ```
+Directories marked with * are part of the CrASHBoot system.
 
 ## Bootloader
 
-The `bootloader` directory contains source code that is compiled and loaded onto the TM4C microcontroller. The bootloader manages which firmware can be updated to the TM4C. When connected to the fw_update tool, the bootloader checks the version of the new firmware against the internal firmware version before accepting the new firmware.
-
-The bootloader will also start the execution of the loaded vehicle firmware.
+The bootloader directory contains source code for the TM4C microcontroller. The bootloader checks the version of new firmware and ensures secure updates.
 
 ## Tools
 
-There are three python scripts in the `tools` directory which are used to:
-
-1. Provision the bootloader (`bl_build.py`)
-2. Package the firmware (`fw_protect.py`)
-3. Update the firmware to a TM4C with a provisioned bootloader (`fw_update.py`)
-
 ### bl_build.py
+Generates a random 16-byte encryption key, writes it to secrets.h, and builds the bootloader.
 
-This script generates a random 16-byte value and writes it to secrets.h as a formatted byte string.
-It also writes the raw 16-byte value to secret-output.txt.
-It then calls `make` in the `bootloader` directory.
+#### Usage:
+
+```bash
+$ python3 bl_build.py
+```
 
 ### fw_protect.py
 
-This script bundles the version and release message with the firmware binary.
-It then encrypts each message chunk (start, data, end).
+Encrypts the firmware using AES-GCM with a frame counter as additional authenticated data (AAD). The frame counter starts at 0 and increments with each frame.
+
+#### Parameters:
+
+* `--infile`: Path to the input firmware file.
+* `--outfile`: Path to the output encrypted firmware file.
+* `--version`: Firmware version.
+* `--message`: Firmware release message.
+
+```bash
+python3 fw_protect.py --infile firmware.bin --outfile firmware_protected.bin --version 1 --message "Firmware :("
+```
 
 ### fw_update.py
+Sends the encrypted firmware to the bootloader in 512-byte frames, waiting for an acknowledgment (OK) from the bootloader after each frame.
 
-This script opens a serial channel with the bootloader, then writes the firmware metadata and binary broken into data frames to the bootloader.
+Usage:
 
-# Building and Flashing the Bootloader
-
-1. Enter the `tools` directory and run `bl_build.py`
-
+```bash
+python3 fw_update.py --infile firmware_protected.bin
 ```
+## Step-by-Step Guide
+
+1. Building and Flashing the Bootloader
+Navigate to the tools directory and run bl_build.py:
+```sh
 cd ./tools
-python bl_build.py
+python3 bl_build.py
 ```
 
-2. Flash the bootloader using `lm4flash` tool
-   
-```
+2. Flash the bootloader using lm4flash:
+sh
+Copy code
+```sh
 sudo lm4flash ../bootloader/bin/bootloader.bin
 ```
-
-# Bundling and Updating Firmware
-
-1. Enter the firmware directory and `make` the example firmware.
-
-```
+2. Bundling and Updating Firmware
+Navigate to the firmware directory and build the example firmware:
+```sh
 cd ./firmware
 make
 ```
 
-2. Enter the tools directory and run `fw_protect.py`
-
-```
+3. Protect the firmware:
+```sh
 cd ../tools
-python fw_protect.py --infile ../firmware/bin/firmware.bin --outfile firmware_protected.bin --version 2 --message "Firmware V2"
+python3 fw_protect.py --infile ../firmware/bin/firmware.bin --outfile firmware_protected.bin --version 2 --message "Firmware V2"
 ```
+4. Reset the TM4C by pressing the RESET button.
 
-This creates a firmware bundle called `firmware_protected.bin` in the tools directory.
 
-3. Reset the TM4C by pressig the RESET button
-
-4. Run `fw_update.py`
-
+5. Update the firmware:
+```sh
+python3 fw_update.py --firmware ./firmware_protected.bin
 ```
-python fw_update.py --firmware ./firmware_protected.bin
-```
+6. Interacting with the Bootloader
+Using the custom car-serial script:
 
-If the firmware bundle is accepted by the bootloader, the `fw_update.py` tool will report it wrote all frames successfully.
-
-Additional firmwares can be updated by repeating steps 3 and 4, but only firmware versions higher than the one flashed to the board (or version 0) will be accepted.
-
-# Interacting with the Bootloader
-
-Using the custom `car-serial` script:
-```
+```sh
 car-serial
 ```
 
-Using `pyserial` module:
+Exit picocom: Ctrl-A X
 
-```
-python -m serial.tools.miniterm /dev/ttyACM0 115200
-```
-
-You can now interact with the bootloader and firmware! Type 'B' to boot.
-
-Exit miniterm: `Ctrl-]`
-Exit picocom: `Ctrl-A X`
-
-# Launching the Debugger
+## Launching the Debugger
 Use OpenOCD with the configuration files for the board to get it into debug mode and open GDB server ports:
-```bash
+
+```sh
 openocd -f /usr/share/openocd/scripts/interface/ti-icdi.cfg -f /usr/share/openocd/scripts/board/ti_ek-tm4c123gxl.cfg
 ```
-
 Start GDB and connect to the main OpenOCD debug port:
-```bash
+
+```sh
 gdb-multiarch -ex "target extended-remote localhost:3333" bootloader/bin/bootloader.axf
 ```
+Go to main function and set a breakpoint:
 
-Go to `main` function and set a breakpoint
-```
+```gdb
 layout src
 list main
 break bootloader.c:50
 ```
+By following these steps, you can securely manage and update your vehicle's firmware using CrASHBoot.
 
-Copyright 2024 The MITRE Corporation. ALL RIGHTS RESERVED <br>
-Approved for public release. Distribution unlimited 23-02181-25.
+Note: This README assumes you have all necessary tools and dependencies installed and configured correctly.

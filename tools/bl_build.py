@@ -24,15 +24,14 @@ BOOTLOADER_DIR = os.path.join(REPO_ROOT, "bootloader")
 
 # Function to update a given headerfile
 def update_line(headerFile, varUpdate, value: bytes):
-    # Expand environment variables in the file path
-    headerFile = os.path.expandvars(headerFile)
-
     # Make sure the varUpdate is in all caps
     varUpdate = varUpdate.upper()
+    lines = []
 
-    # Read the existing content of the header file
-    with open(headerFile, 'r') as file:
-        lines = file.readlines()
+    if os._exists(headerFile):
+        # Read the existing content of the header file
+        with open(headerFile, 'r') as file:
+            lines = file.readlines()
 
     # define pattern and newMsg
     pattern = f'define {varUpdate}'  # defines the pattern to look for
@@ -45,8 +44,10 @@ def update_line(headerFile, varUpdate, value: bytes):
             break
     else:
         # If the variable was not found, add it to the end of the file
-        lines[-1] = newMsg
-        lines.append('\n#endif')
+        if len(lines) > 0:
+            lines[-1] = newMsg
+        else:
+            lines.append(newMsg)
 
     # Write the updated content back to the header file
     with open(headerFile, 'w') as file:
@@ -72,7 +73,6 @@ def bytes_to_formatted_string(byte_data):
 # Function to generate the keys and build the bootloader
 def make_bootloader() -> bool:
     # Generate AAD (Additional Authentication Data)
-    #aad = get_random_bytes(16)  # used to authenticate integrity of the encrypted data
 
     # Generate AES-GCM (128 bit) key
     aesKey = get_random_bytes(16)
@@ -83,7 +83,7 @@ def make_bootloader() -> bool:
     #    file.truncate(0)  # This will truncate the file to zero length
 
     # update secrets.h with the newly generated AES-GCM (128 bit) key
-    update_line("${HOME}/chunkychunkchunkchunkchonkydinosaurs/bootloader/inc/secrets.h", "aesKey", aesKey)
+    update_line("../bootloader/inc/secrets.h", "aesKey", aesKey)
 
     # update secrets.h with the newly generated AAD 
     #update_line("${HOME}/chunkychunkchunkchunkchonkydinosaurs/bootloader/inc/secrets.h", "aad", aad.hex())
@@ -92,13 +92,16 @@ def make_bootloader() -> bool:
     # --------------------- DO NOT TOUCH THIS CODE ---------------------
     # Build the bootloader from source.
 
-    '''os.chdir(BOOTLOADER_DIR)
+    os.chdir(BOOTLOADER_DIR)
 
     subprocess.call("make clean", shell=True)
     status = subprocess.call("make")
 
+    # Delete the secrets file after we're done with it
+    os.remove("../bootloader/inc/secrets.h")
+
     # Return True if make returned 0, otherwise return False.
-    return status == 0'''
+    return status == 0
 
     # --------------------- END OF UNTOUCHABLE CODE ---------------------
 

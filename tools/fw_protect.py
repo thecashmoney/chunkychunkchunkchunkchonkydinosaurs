@@ -51,24 +51,24 @@ def ceildiv(a, b):
     return -(a // -b)
 
 # This is the "main" function
-def protect_firmware(infile, version, message):
+def protect_firmware(infile, version, message, outfile):
 
     # Load firmware binary from infile
     with open(infile, "rb") as fp:
         firmware = fp.read()
     # calls start_protect to protect the start message frames
-    index = start_protect(len(firmware), version, message)
+    index = start_protect(len(firmware), version, message, outfile)
     
     # calls protect_body to protect the data message frames
-    index = protect_body(index, firmware)
+    index = protect_body(index, firmware, outfile)
 
     # calls protect_end to protect the end message frames
-    protect_end(index)
+    protect_end(index, outfile)
     #print("Number of frames:", protect_end(index) + 1)
 
 
 # Protects the start message
-def start_protect(size: int, version: int, message: str):
+def start_protect(size: int, version: int, message: str, outfile):
     """
     Start message creation and encryption
     
@@ -92,7 +92,7 @@ def start_protect(size: int, version: int, message: str):
     rmsize = len(msg)  # stores the release msg size
 
     # msg type, version number, data size, release msg size
-    sizes = p32(0, endian='little') + p32(version, endian='little') + p32(size, endian='little') + p32(rmsize, endian='little')
+    sizes = p32(1, endian='little') + p32(version, endian='little') + p32(size, endian='little') + p32(rmsize, endian='little')
     
     index = 0
 
@@ -113,7 +113,7 @@ def start_protect(size: int, version: int, message: str):
 
     # -------------------------------- ENCRYPTION -------------------------------- #
     with open("../secret_build_output.txt", "r") as keyfile:
-        key = [ord(c) for c in keyfile.read(16)]
+        key = bytearray([ord(c) for c in keyfile.read(16)])
     outputMsg = []
 
     j = 0
@@ -129,12 +129,12 @@ def start_protect(size: int, version: int, message: str):
         ciphertext, tag = cipher.encrypt_and_digest(data)
         iv = cipher.nonce
         outputMsg.append((iv,tag,ciphertext))
-        j = j + 1\
+        j = j + 1
     # -------------------------------- END -------------------------------- #
 
     
     # -------------------------------- WRITE CIPHERTEXT TO protected_output -------------------------------- #
-    with open("protected_output.bin", "wb") as f:
+    with open(outfile, "wb") as f:
         for i in outputMsg:
             iv, tag, ciphertext = i
             f.write(iv + tag + ciphertext)
@@ -144,7 +144,7 @@ def start_protect(size: int, version: int, message: str):
 
 
 # Protects the data msg frames 
-def protect_body(frame_index: int, data: bytes):
+def protect_body(frame_index: int, data: bytes, outfile):
     """
     Body message creation and encryption
     
@@ -158,7 +158,7 @@ def protect_body(frame_index: int, data: bytes):
 
     # Reads the file containing the AES-GCM key
     with open("../secret_build_output.txt", "r") as keyfile:
-        key = [ord(c) for c in keyfile.read(16)]
+        key = bytearray([ord(c) for c in keyfile.read(16)])
 
     index = 0
     
@@ -174,7 +174,7 @@ def protect_body(frame_index: int, data: bytes):
         ### Creating plaintext
         # Adding frame type code
         plaintext = bytearray(0)
-        plaintext += p32(1, endian='little')
+        plaintext += p32(2, endian='little')
 
         # Adding firmware plaintext
         if len(data) - index < DATAmax:
@@ -205,7 +205,7 @@ def protect_body(frame_index: int, data: bytes):
         frame_index += 1
 
     # Putting all the data frames in the protected output thing
-    with open("protected_output.bin", "ab") as f:
+    with open(outfile, "ab") as f:
         f.write(body)
 
     # Return the entire protected firmware
@@ -213,7 +213,7 @@ def protect_body(frame_index: int, data: bytes):
 
 
 # Protects the end_msg frames
-def protect_end(frame_index):
+def protect_end(frame_index, outfile):
     """
     End message creation and encryption
     
@@ -223,10 +223,10 @@ def protect_end(frame_index):
     
     # Opens the AES-GCM key
     with open("../secret_build_output.txt", "r") as keyfile:
-        key = [ord(c) for c in keyfile.read(16)]
+        key = bytearray([ord(c) for c in keyfile.read(16)])
 
     # Encrypting the end frame and padding it
-    data = pad(p8(2, endian='little'), 480, style='iso7816')
+    data = pad(p32(3, endian='little'), 480, style='iso7816')
     cipher = AES.new(key, AES.MODE_GCM)
     cipher.update(p16(frame_index))
 
@@ -236,7 +236,7 @@ def protect_end(frame_index):
     # -------------------------------- END -------------------------------- #
     
     # -------------------------------- WRITE CIPHERTEXT TO protected_output -------------------------------- #
-    with open("protected_output.bin", "ab") as f:
+    with open(outfile, "ab") as f:
         f.write(iv + tag + ciphertext)
     # -------------------------------- END -------------------------------- #
     
@@ -244,13 +244,15 @@ def protect_end(frame_index):
 
 if __name__ == "__main__":
     # -------------------------------- OG (Template) Code -------------------------------- #
-    parser = argparse.ArgumentParser(description="Firmware Update Tool")
+    parser = argparse.ArgumentParser(description="Firmware Protection Tool")
     parser.add_argument("--infile", help="Path to the firmware image to protect.", required=True)
     parser.add_argument("--version", help="Version number of this firmware.", required=True)
     parser.add_argument("--message", help="Release message for this firmware.", required=True)
+    parser.add_argument("--outfile", help="File for the output of this program.", required=True)
+    
     args = parser.parse_args()
     # -------------------------------- END -------------------------------- #
     
     
     # Calls protect_firmware function
-    protect_firmware(infile=args.infile, version=int(args.version), message=args.message)
+    protect_firmware(infile=args.infile, version=int(args.version), message=args.message, outfile=args.outfile)
