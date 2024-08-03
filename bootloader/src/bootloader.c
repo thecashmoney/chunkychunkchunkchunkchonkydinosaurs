@@ -545,8 +545,9 @@ void load_firmware(void) {
         return;
     }
 
-    /* Sending back the end frame type to the python - remove later */ 
+    /* Sending back the end frame type to the python */ 
     uart_write(UART0, STOP);
+    return;
 }
 
 /* Erase a given number of pages starting from the page address */ 
@@ -600,34 +601,7 @@ int write_firmware(uint8_t* page_addr, uint8_t *firmware, uint32_t data_len) {
     int result;
     uint32_t i;
  
-    // Clear potentially unused bytes in last word
-    // If data not a multiple of 4 (word size), program up to the last word
-    // Then create temporary variable to create a full last word
-    if (data_len % FLASH_WRITESIZE != 0) {
-        // Get number of unused bytes
-        uint32_t remainder = data_len % FLASH_WRITESIZE;
-        int num_full_words = data_len / FLASH_WRITESIZE;
-
-        // Program up to the last word
-        result = FlashProgram((unsigned long *)firmware, (uint32_t) page_addr, num_full_words);
-        if (result != 0) {
-            return result;
-        }
-
-        // Create last word variable -- fill unused with 0xFF
-        for (i = 0; i < remainder; i++) {
-            word = (word >> 8) | (firmware[num_full_words + i] << 24); // Essentially a shift register from MSB->LSB
-        }
-        for (i = 0; i < 4; i++) {
-            word = (word >> 8) | 0xFF000000;
-        }
-
-        // Program word (in case it is not div by 4)
-        return FlashProgram(&word, (uint32_t) page_addr + num_full_words, 4);
-    } else {
-        // Write full buffer of 4-byte words
-        return FlashProgram((unsigned long *)firmware, (uint32_t) page_addr, data_len);
-    }
+    return FlashProgram((unsigned long *)firmware, (uint32_t) page_addr, data_len);
 }
 
 
