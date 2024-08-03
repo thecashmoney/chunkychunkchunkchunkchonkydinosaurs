@@ -1,0 +1,5 @@
+commands to execute:
+cd ../bootloader; make; cd ../tools; lm4flash ../bootloader/bin/bootloader.bin --> make and flash file
+python3 bl_build.py; 
+python3 firmwareGen.py; python3 fw_protect.py --infile ../firmware/bin/firmware.bin --version 1 --message "$(cat ./release_message_gen.py)" --outfile ./protected.bin
+python3 fw_update.py --infile protected_output.bin
