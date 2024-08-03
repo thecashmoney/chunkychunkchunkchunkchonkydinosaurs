@@ -452,7 +452,7 @@ void load_firmware(void) {
         num_frames = (uint32_t) (fw_size / FRAME_BODY_LEN) + 1;
     }
     
-
+    // Going through every body frame, decrypting it, verifying it, and flashing it
     for (int i = 0; i < num_frames; i++) {
         // Read in the next frame and write a success/fail message to fw update
         read_frame(frame_enc_ptr);
@@ -466,6 +466,7 @@ void load_firmware(void) {
         } else {
             tries = 1;
             while (tries <= MAX_DECRYPTS && (dec_result != 0)) {
+                // Reading a new frame until there isn't a problem transmitting (it's so rare we'll set tolerance to 1)
                 uart_write(UART0, INTEGRITY_ERROR);
                 read_frame(frame_enc_ptr);
                 dec_result = decrypt(frame_enc_ptr, &frame_index, frame_dec_ptr->plaintext);
@@ -492,13 +493,10 @@ void load_firmware(void) {
         write_firmware(flash_address, frame_dec_body_ptr->plaintext, FRAME_BODY_LEN);
         flash_address += FRAME_BODY_LEN;
 
+        // Everything worked so status is ok
         uart_write(UART0, OK);
 
-        // Writing a frame of the firmware to flash 
-
-
-        //write msg size: remove this later
-
+        // Incrementing amount of frames we've recieved by 1
         frame_index++;
  
         // If there is an unpadded frame and if this is the last frame, unpad it
