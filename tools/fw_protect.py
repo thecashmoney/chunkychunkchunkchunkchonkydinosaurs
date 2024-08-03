@@ -244,7 +244,7 @@ def protect_end(frame_index):
 
 if __name__ == "__main__":
     # -------------------------------- OG (Template) Code -------------------------------- #
-    parser = argparse.ArgumentParser(description="Firmware Update Tool")
+    parser = argparse.ArgumentParser(description="Firmware Protection Tool")
     parser.add_argument("--infile", help="Path to the firmware image to protect.", required=True)
     parser.add_argument("--version", help="Version number of this firmware.", required=True)
     parser.add_argument("--message", help="Release message for this firmware.", required=True)

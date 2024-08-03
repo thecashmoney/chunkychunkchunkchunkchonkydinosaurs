@@ -132,4 +132,8 @@ def main():
 
 if __name__ == "__main__":
     #calc num frames works
+    parser = argparse.ArgumentParser(description="Firmware Update Tool")
+    parser.add_argument("--infile", help="Path to the firmware image to protect.", required=True)
+    args = parser.parse_args()
+
     main()

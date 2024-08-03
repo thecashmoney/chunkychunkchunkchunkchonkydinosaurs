@@ -293,8 +293,15 @@ void load_firmware(void) {
 
     flash_address = FW_BASE;
     
-    // // Making sure the old version isn't smaller than the current version
-    // // +casted to uint32 to make the data types uniform.
+    /******************************************************************************
+     *                                                                            *
+     *              update_metadata                                               *
+     * Description: This function ensures that the old version is not smaller     *
+     *              than the current version. It casts the versions to uint32_t   *
+     *              to make the data types uniform.                               *
+     *                                                                            *
+     ******************************************************************************/
+
     uint32_t old_version = (uint32_t) *fw_version_address;
     uint32_t old_size = (uint32_t) *fw_size_address;
     if (old_version == 0xFFFF) 
@@ -309,6 +316,7 @@ void load_firmware(void) {
             program_flash((uint8_t *) METADATA_BASE, (uint8_t *)(&metadata), 4);
         } else 
         {
+            // Failed (trying to set original version to something that isn't 1)
             uart_write(UART0, VERSION_ERROR);
             while(UARTBusy(UART0_BASE)) {/*no*/}
             SysCtlReset();
@@ -325,16 +333,14 @@ void load_firmware(void) {
     } else 
     {
         //change the value of version and size at the memory address referenced by fw_version_address and fw_size_address
-        // *fw_version_address = (uint16_t) version;
-        // *fw_size_address = (uint16_t) fw_size;
         uint32_t metadata = ((fw_size & 0xFFFF) << 16) | (version & 0xFFFF);
         program_flash((uint8_t *) METADATA_BASE, (uint8_t *)(&metadata), 4);
     }
 
-    //writes the frame type
-    //uart_write(UART0, frame_dec_start_ptr->type);
+    // Writes an OK to the update to signal that metadata and first start frame are all good
     uart_write(UART0, OK);
-    //change the type not to be hard-coded
+    
+    // Increasing the number of frames we have read by 1
     frame_index++;
 
 
