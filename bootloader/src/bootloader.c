@@ -52,7 +52,7 @@ int write_firmware(uint8_t *mem_addr, uint8_t *firmware, uint32_t data_len);
 #define FRAME_MSG_LEN 464
 #define FRAME_BODY_LEN 476
 
-#define MAX_DECRYPTS 5
+#define MAX_DECRYPTS 1
 
 // Frame type constants
 #define TYPE_START ((unsigned char)0x01)
@@ -202,25 +202,7 @@ void read_frame(generic_frame *frame)
 
     // read the ciphertext and store it in the generic_frame struct
     receive_ciphertext(frame->ciphertext);
-
-    // send back a null byte 
-    // return OK;
-
-    // // TODO: Remove the testing for loops later
-    // for (int i=0; i<16; i++)
-    // {
-    //     uart_write(UART0, frame->IV[i]);
-    // }    
-    // for (int i=0; i<16; i++)
-    // {
-    //     uart_write(UART0, frame->tag[i]);
-    // }
-    // for (int i=0; i<480; i++)
-    // {
-    //     uart_write(UART0, frame->ciphertext[i]);
-    // }
 }
-
 
 
  /*
