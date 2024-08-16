@@ -9,8 +9,12 @@ CrASHBoot is a secure automotive bootloader designed to ensure the safe updating
 
 CrASHBoot consists of three main components:
 
-1. Bootloader: Manages firmware updates and ensures only authorized firmware is installed.
-2. Tools: Scripts for building the bootloader, protecting the firmware, and updating the firmware.
+1. Bootloader: Manages firmware updates and ensures that only authorized firmware is installed. The bootloader plays a crucial role in system security by validating firmware integrity and authenticity before allowing it to execute.
+2. Tools: A set of scripts for building the bootloader, protecting the firmware, and securely transmitting the firmware to the bootloader.
+3. Security and Cryptography: CrASHBoot employs AES-GCM (Advanced Encryption Standard in Galois/Counter Mode) to encrypt firmware data and ensure its confidentiality, authenticity, and integrity.
+  - Confidentiality: AES-GCM provides confidentiality by encrypting the firmware data. The encrypted data is unintelligible to unauthorized parties, ensuring that sensitive information is protected from exposure.
+  - Authenticity and Integrity: AES-GCM generates an authentication tag alongside the encrypted data. This tag is a unique cryptographic value computed over both the ciphertext and additional associated data. It ensures that the data has not been tampered with and confirms its origin. During decryption, the tag is verified, and if it doesn’t match, the data is rejected. Additional authentication data is added to each frame, which is the frame number, so that if a frame is not exactly in the right place, the data will not be successfully decrypted.
+  - Key Management: To protect the encryption keys, CrASHBoot securely stores them on the factory side and embeds them within the bootloader binary. This design ensures that the keys are not accessible to unauthorized users or exposed during firmware updates. The keys are never stored in plaintext and are carefully managed to prevent leakage or compromise, ensuring that the encryption process remains secure throughout the device's lifecycle.
 
 ## How to Use
 
